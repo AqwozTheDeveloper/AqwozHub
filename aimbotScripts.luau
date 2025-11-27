@@ -1,4 +1,4 @@
--- aimbotScripts.luau
+-- aimbotScripts.luau (OPTIMIZED)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -9,97 +9,83 @@ local module = {}
 
 local aimbotEnabled = false
 local aimbotFOV = 200
+local aimbotSmoothing = 0.15
 local aimbotConnection = nil
-local aimbotSmoothing = 0.1 -- Daha smooth aim için
 
--- En yakın oyuncuyu bul
-local function getClosestPlayer()
-    local closestPlayer = nil
-    local shortestDistance = aimbotFOV
+-- En yakın hedefi al
+local function getClosestTarget()
+    local mouse = UserInputService:GetMouseLocation()
+    local closest = nil
+    local shortest = aimbotFOV
 
-    local mousePos = UserInputService:GetMouseLocation()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local head = plr.Character:FindFirstChild("Head")
+            local hum = plr.Character:FindFirstChild("Humanoid")
 
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local humanoid = player.Character:FindFirstChild("Humanoid")
-            local head = player.Character:FindFirstChild("Head")
+            if head and hum and hum.Health > 0 then
+                local pos, vis = Camera:WorldToViewportPoint(head.Position)
 
-            if humanoid and humanoid.Health > 0 and head then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+                if vis then
+                    local distance = (Vector2.new(pos.X, pos.Y) - mouse).Magnitude
 
-                if onScreen then
-                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-
-                    if distance < shortestDistance then
-                        closestPlayer = player
-                        shortestDistance = distance
+                    if distance < shortest then
+                        closest = head
+                        shortest = distance
                     end
                 end
             end
         end
     end
 
-    return closestPlayer
+    return closest
 end
 
--- Aimbot loop (Smooth)
+local function aimTo(target)
+    local camPos = Camera.CFrame.Position
+    local targetCF = CFrame.new(camPos, target.Position)
+    Camera.CFrame = Camera.CFrame:Lerp(targetCF, aimbotSmoothing)
+end
+
 local function aimbotLoop()
     if not aimbotEnabled then return end
 
-    local target = getClosestPlayer()
-
-    if target and target.Character then
-        local head = target.Character:FindFirstChild("Head")
-
-        if head then
-            -- Kamerayı hedefin kafasına yönlendir
-            local targetCFrame = CFrame.new(Camera.CFrame.Position, head.Position)
-            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, aimbotSmoothing)
-        end
+    local target = getClosestTarget()
+    if target then
+        aimTo(target)
     end
 end
 
+-- Public API
 function module.init()
-    print("[Aimbot] Module initialized")
+    print("[Aimbot] Loaded.")
 end
 
 function module.toggleAimbot(state)
     aimbotEnabled = state
-    print("[Aimbot] Toggled:", state)
+    print("[Aimbot]:", state and "Enabled" or "Disabled")
 
     if state then
-        -- Aimbot açık
-        if aimbotConnection then
-            aimbotConnection:Disconnect()
-        end
-
+        if aimbotConnection then aimbotConnection:Disconnect() end
         aimbotConnection = RunService.RenderStepped:Connect(aimbotLoop)
     else
-        -- Aimbot kapalı
-        if aimbotConnection then
-            aimbotConnection:Disconnect()
-            aimbotConnection = nil
-        end
+        if aimbotConnection then aimbotConnection:Disconnect() end
+        aimbotConnection = nil
     end
 end
 
 function module.setFOV(value)
     aimbotFOV = value
-    print("[Aimbot] FOV set to:", value)
+    print("[Aimbot] FOV:", aimbotFOV)
 end
 
 function module.setSmoothing(value)
     aimbotSmoothing = value
-    print("[Aimbot] Smoothing set to:", value)
+    print("[Aimbot] Smoothing:", aimbotSmoothing)
 end
 
 function module.destroy()
-    aimbotEnabled = false
-
-    if aimbotConnection then
-        aimbotConnection:Disconnect()
-        aimbotConnection = nil
-    end
+    module.toggleAimbot(false)
 end
 
 return module
