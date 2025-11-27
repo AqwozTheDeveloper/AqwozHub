@@ -2,7 +2,7 @@ local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/jen
 
 -- VISION MODULE DEVRE DIŞI (Hatalı olduğu için)
 local visionURL = "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/visionScripts.luau"
--- local visionScripts = loadstring(game:HttpGet(visionURL))()
+local visionScripts = loadstring(game:HttpGet(visionURL))()
 -- visionScripts.init()
 
 local Window = OrionLib:MakeWindow({
@@ -123,4 +123,5 @@ AimSection:AddLabel("Aimbot features coming soon...")
 
 -- Initialize Orion
 OrionLib:Init()
+
 
