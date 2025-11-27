@@ -1,31 +1,12 @@
--- main.luau - Aqwoz Hub (Clean Version)
-print("[Main] Script starting...")
+-- main.luau - Aqwoz Hub
+local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Orion/main/source'))()
 
--- Services
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-
--- Load OrionLib
-local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source'))()
-print("[Main] OrionLib loaded")
-
--- Vision module
+-- Vision module'u GitHub'dan çek (senin fixed versiyonunu kullan)
 local visionURL = "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/visionScripts.luau"
-print("[Main] Loading vision module...")
+local visionScripts = loadstring(game:HttpGet(visionURL))()
 
-local success, visionScripts = pcall(function()
-    return loadstring(game:HttpGet(visionURL))()
-end)
-
-if success then
-    print("[Main] Vision module loaded!")
-    pcall(function()
-        visionScripts.init()
-        print("[Main] Vision module initialized!")
-    end)
-else
-    warn("[Main] Failed to load vision module:", visionScripts)
-end
+-- Module'u başlat
+visionScripts.init()
 
 -- Window
 local Window = OrionLib:MakeWindow({
@@ -34,115 +15,78 @@ local Window = OrionLib:MakeWindow({
     SaveConfig = true, 
     ConfigFolder = "OrionConfig"
 })
-print("[Main] Window created")
 
 -- Notification
 OrionLib:MakeNotification({
-    Name = "Aqwoz Hub",
-    Content = "Loaded successfully!",
-    Image = "rbxassetid://4483345998",
-    Time = 3
+    Name = "Welcome to AqwozHub",
+    Content = "Welcome to AqwozHub, it's a testing version.",
+    Image = "rbxassetid://139804491781132",
+    Time = 5
 })
 
--- Home Tab
-local HomeTab = Window:MakeTab({
-    Name = "Home",
-    Icon = "rbxassetid://4483345998",
+-- Ana Tab
+local AqwozHub = Window:MakeTab({
+    Name = "AqwozHub",
+    Icon = "rbxassetid://12905962634",
     PremiumOnly = false
 })
 
-HomeTab:AddParagraph("Welcome!", "Aqwoz Hub loaded. Use ESP tab to enable player vision.")
+AqwozHub:AddParagraph("Welcome to AqwozHub!", "Hello, this script is only getting developed by one person. Updates are on the way.")
 
--- ESP Tab
-local ESPTab = Window:MakeTab({
-    Name = "ESP",
-    Icon = "rbxassetid://4483345998",
+-- Vision Tab
+local VisionTab = Window:MakeTab({
+    Name = "Player Vision",
+    Icon = "rbxassetid://10906937488",
     PremiumOnly = false
 })
 
-ESPTab:AddToggle({
+VisionTab:AddToggle({
     Name = "Enable ESP",
     Default = false,
     Callback = function(Value)
-        print("[Main] ESP Toggle:", Value)
-        if success and visionScripts then
-            pcall(function()
-                visionScripts.toggleESP(Value)
-            end)
-        else
-            warn("[Main] Vision module not available")
-        end
+        visionScripts.toggleESP(Value)
     end
 })
 
-ESPTab:AddColorpicker({
+VisionTab:AddColorPicker({
     Name = "ESP Color",
-    Default = Color3.fromRGB(0, 255, 100),
+    Default = Color3.fromRGB(255, 255, 255),
     Callback = function(Value)
-        print("[Main] ESP Color:", Value)
-        if success and visionScripts then
-            pcall(function()
-                visionScripts.setESPColor(Value)
-            end)
-        end
-    end
-})
-
-ESPTab:AddButton({
-    Name = "Refresh ESP",
-    Callback = function()
-        if success and visionScripts then
-            print("[Main] Refreshing ESP...")
-            visionScripts.toggleESP(false)
-            wait(0.1)
-            visionScripts.toggleESP(true)
-        end
-    end
-})
-
--- Debug Section
-local DebugSection = ESPTab:AddSection({
-    Name = "Debug"
-})
-
-DebugSection:AddButton({
-    Name = "Check Players",
-    Callback = function()
-        print("=== PLAYER CHECK ===")
-        for _, plr in pairs(Players:GetPlayers()) do
-            local hasChar = plr.Character ~= nil
-            local hasHRP = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") ~= nil
-            print(string.format("%s | Char: %s | HRP: %s", plr.Name, tostring(hasChar), tostring(hasHRP)))
-        end
-        print("====================")
-    end
-})
-
-DebugSection:AddButton({
-    Name = "Check ESP Folder",
-    Callback = function()
-        local folder = workspace:FindFirstChild("VisionESP")
-        if folder then
-            print("[Main] ESP Folder found!")
-            print("[Main] Children:", #folder:GetChildren())
-            for _, child in pairs(folder:GetChildren()) do
-                print("  -", child.Name)
-            end
-        else
-            warn("[Main] ESP Folder not found!")
-        end
+        visionScripts.setESPColor(Value)
     end
 })
 
 -- Aimbot Tab
-local AimbotTab = Window:MakeTab({
+local AimSectionTab = Window:MakeTab({
     Name = "Aimbot",
-    Icon = "rbxassetid://4483345998",
+    Icon = "rbxassetid://10906937488",
     PremiumOnly = false
 })
 
-AimbotTab:AddLabel("Coming soon...")
+local AimSection = AimSectionTab:AddSection({
+    Name = "Aim Section"
+})
+
+AimSection:AddToggle({
+    Name = "Enable Aimbot",
+    Default = false,
+    Callback = function(Value)
+        print("Aimbot: " .. tostring(Value))
+        -- Aimbot fonksiyonu buraya gelecek
+    end
+})
+
+AimSection:AddSlider({
+    Name = "Aimbot FOV",
+    Min = 50,
+    Max = 500,
+    Default = 200,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 10,
+    Callback = function(Value)
+        print("FOV: " .. Value)
+    end
+})
 
 -- Initialize
 OrionLib:Init()
-print("[Main] Script fully loaded!")
