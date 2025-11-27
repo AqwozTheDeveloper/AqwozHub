@@ -139,4 +139,20 @@ function module.destroy()
     lineCache = {}
 end
 
+function module.SetESPColor(color)
+    if espFolder then
+        for _, child in ipairs(espFolder:GetChildren()) do
+            if child:IsA("BoxHandleAdornment") then
+                child.Color3 = color
+            end
+        end
+    end
+
+    for _, line in pairs(lineCache) do
+        if line then
+            line.Color = color
+        end
+    end
+end
+
 return module
