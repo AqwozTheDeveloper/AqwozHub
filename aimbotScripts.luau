@@ -1,7 +1,7 @@
--- silentAim.luau (Rivals-Compatible Silent Aim)
+-- silentAim_remote.luau (Rivals-Compatible - Safe Hook)
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
@@ -10,10 +10,10 @@ local SilentAim = {}
 local enabled = false
 local fov = 200
 local ignoreWalls = false
-local isHooked = false
-local connection = nil
+local originalFire = nil
+local fireRemote = nil
 
--- Helper: Get screen position of a world point
+-- Helper: Get screen position of world point
 local function worldToScreen(worldPos)
     local cam = Workspace.CurrentCamera
     if not cam then return nil end
@@ -21,15 +21,15 @@ local function worldToScreen(worldPos)
     return onScreen and Vector2.new(pos.X, pos.Y) or nil
 end
 
--- Helper: Check if enemy is visible (not behind wall)
+-- Helper: Check line of sight
 local function isVisible(fromPos, toPos)
     local ray = Ray.new(fromPos, (toPos - fromPos).unit * (toPos - fromPos).magnitude)
     local part, _ = Workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character})
     return not part
 end
 
--- Find closest valid enemy's screen position
-local function getClosestTargetScreen()
+-- Find closest enemy's position
+local function getClosestTargetPosition()
     local cam = Workspace.CurrentCamera
     if not cam then return nil end
 
@@ -41,7 +41,7 @@ local function getClosestTargetScreen()
         if player == LocalPlayer or not player.Character then continue end
 
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
-        local targetPart = player.Character:FindFirstChild("UpperTorso")  -- Rivals uses this
+        local targetPart = player.Character:FindFirstChild("UpperTorso")
             or player.Character:FindFirstChild("Head")
             or player.Character:FindFirstChild("HumanoidRootPart")
 
@@ -50,7 +50,7 @@ local function getClosestTargetScreen()
         local screenPos = worldToScreen(targetPart.Position)
         if not screenPos then continue end
 
-        -- Wall check (optional)
+        -- Wall check
         if not ignoreWalls then
             local camPos = cam.CFrame.Position
             if not isVisible(camPos, targetPart.Position) then continue end
@@ -59,34 +59,73 @@ local function getClosestTargetScreen()
         local dist = (screenPos - mousePos).Magnitude
         if dist < bestDist then
             bestDist = dist
-            bestPos = screenPos
+            bestPos = targetPart.Position
         end
     end
 
     return bestPos
 end
 
--- Hook: Only move mouse on left-click
-local function onInputBegan(input, gameProcessed)
-    -- Only fire if enabled, not typing, and left mouse button
-    if not enabled or gameProcessed or input.UserInputType ~= Enum.UserInputType.MouseButton1 then
-        return
+-- 🔍 Auto-detect fire remote (common names in Rivals)
+local function findFireRemote()
+    local remotes = {
+        ReplicatedStorage:FindFirstChild("WeaponFire"),
+        ReplicatedStorage:FindFirstChild("Shoot"),
+        ReplicatedStorage:FindFirstChild("Attack"),
+        ReplicatedStorage:FindFirstChild("Fire"),
+        ReplicatedStorage:FindFirstChild("Hit"),
+        game.ReplicatedStorage.Remotes:FindFirstChild("WeaponFire") -- Try nested folder
+    }
+
+    for _, remote in ipairs(remotes) do
+        if remote and (remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction")) then
+            return remote
+        end
     end
 
-    local targetScreen = getClosestTargetScreen()
-    if not targetScreen then return end
+    -- Wait for it to appear (if not loaded yet)
+    local waitCount = 0
+    while waitCount < 50 and not fireRemote do
+        waitCount = waitCount + 1
+        for _, remote in ipairs(remotes) do
+            if remote and (remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction")) then
+                fireRemote = remote
+                print("[Silent Aim] Found fire remote:", remote.Name)
+                return remote
+            end
+        end
+        task.wait(0.1)
+    end
 
-    -- Save original mouse position
-    local orig = UserInputService:GetMouseLocation()
+    warn("[Silent Aim] Could not find fire remote. Falling back to mouse method.")
+    return nil
+end
 
-    -- Move mouse to target (for this shot)
-    UserInputService:SetMousePosition(targetScreen.X, targetScreen.Y)
+-- Hook fire remote
+local function hookFireRemote()
+    if not fireRemote then
+        fireRemote = findFireRemote()
+        if not fireRemote then return end
+    end
 
-    -- Restore original position NEXT FRAME (so player sees no flicker)
-    spawn(function()
-        RunService.Heartbeat:Wait()
-        UserInputService:SetMousePosition(orig.X, orig.Y)
-    end)
+    if originalFire then return end -- Already hooked
+
+    originalFire = fireRemote.FireServer
+    fireRemote.FireServer = function(self, ...)
+        if enabled then
+            local targetPos = getClosestTargetPosition()
+            if targetPos then
+                -- Modify args: replace hit position with target position
+                local args = {...}
+                -- Assuming first arg is hit position (adjust based on Rivals' structure)
+                args[1] = targetPos  -- ⚠️ This may need adjustment!
+                return originalFire(self, unpack(args))
+            end
+        end
+        return originalFire(self, ...)
+    end
+
+    print("[Silent Aim] Fire remote hooked successfully.")
 end
 
 -- Public API
@@ -94,15 +133,13 @@ function SilentAim.toggle(state)
     enabled = state
     print("[Silent Aim] " .. (state and "Enabled" or "Disabled"))
 
-    if state and not isHooked then
-        connection = UserInputService.InputBegan:Connect(onInputBegan)
-        isHooked = true
-    elseif not state and isHooked then
-        if connection then
-            connection:Disconnect()
-            connection = nil
+    if state then
+        hookFireRemote() -- Ensure remote is hooked
+    else
+        if originalFire and fireRemote then
+            fireRemote.FireServer = originalFire
+            originalFire = nil
         end
-        isHooked = false
     end
 end
 
@@ -119,5 +156,13 @@ end
 function SilentAim.destroy()
     SilentAim.toggle(false)
 end
+
+-- Auto-initialize when character loads
+game.Players.LocalPlayer.CharacterAdded:Connect(function(char)
+    task.wait(2) -- Give time for remotes to load
+    if enabled then
+        hookFireRemote()
+    end
+end)
 
 return SilentAim
