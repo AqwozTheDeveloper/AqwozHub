@@ -1,14 +1,12 @@
 local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/jensonhirst/Orion/main/source')))()
 
--- Vision module'u GitHub'dan çekiyoruz
-local visionURL = "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/visionScripts.luau"
-local visionScripts = loadstring(game:HttpGet(visionURL))()
-
--- Module inits
-visionScripts.init()
+-- VISION MODULE DEVRE DIŞI (Hatalı olduğu için)
+-- local visionURL = "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/visionScripts.luau"
+-- local visionScripts = loadstring(game:HttpGet(visionURL))()
+-- visionScripts.init()
 
 local Window = OrionLib:MakeWindow({
-    Name = "Aqwoz Hub", 
+    Name = "Aqwoz Hub - Fixed", 
     HidePremium = false, 
     SaveConfig = true, 
     ConfigFolder = "OrionConfig"
@@ -16,7 +14,7 @@ local Window = OrionLib:MakeWindow({
 
 OrionLib:MakeNotification({
     Name = "Welcome to AqwozHub",
-    Content = "Welcome to AqwozHub, it's a testing version.",
+    Content = "Fixed version - Vision module disabled due to errors.",
     Image = "rbxassetid://139804491781132",
     Time = 5
 })
@@ -27,7 +25,48 @@ local AqwozHub = Window:MakeTab({
     PremiumOnly = false
 })
 
-AqwozHub:AddParagraph("Welcome to AqwozHub!", "Hello, this script is only getting developed by one person. Updates are on the way.")
+AqwozHub:AddParagraph("Welcome to AqwozHub!", "This is a fixed version with basic features.")
+
+-- BASIT ESP SİSTEMİ (Vision modülü olmadan)
+local ESPEnabled = false
+local ESPColor = Color3.fromRGB(255, 255, 255)
+local ESPBoxes = {}
+
+local function createESP(player)
+    if player == game.Players.LocalPlayer then return end
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "ESP_Highlight"
+        highlight.Adornee = player.Character
+        highlight.FillColor = ESPColor
+        highlight.OutlineColor = ESPColor
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        highlight.Parent = player.Character
+        ESPBoxes[player.Name] = highlight
+    end
+end
+
+local function removeESP(player)
+    if ESPBoxes[player.Name] then
+        ESPBoxes[player.Name]:Destroy()
+        ESPBoxes[player.Name] = nil
+    end
+end
+
+local function toggleESP(value)
+    ESPEnabled = value
+    if value then
+        for _, player in pairs(game.Players:GetPlayers()) do
+            createESP(player)
+        end
+    else
+        for _, highlight in pairs(ESPBoxes) do
+            highlight:Destroy()
+        end
+        ESPBoxes = {}
+    end
+end
 
 local VisionTab = Window:MakeTab({
     Name = "Player Vision",
@@ -39,7 +78,7 @@ VisionTab:AddToggle({
     Name = "Enable ESP",
     Default = false,
     Callback = function(Value)
-        visionScripts.toggleESP(Value)
+        toggleESP(Value)
     end
 })
 
@@ -47,9 +86,28 @@ VisionTab:AddColorPicker({
     Name = "ESP Color",
     Default = Color3.fromRGB(255, 255, 255),
     Callback = function(Value)
-        visionScripts.setESPColor(Value)
+        ESPColor = Value
+        if ESPEnabled then
+            toggleESP(false)
+            toggleESP(true)
+        end
     end
 })
+
+-- Yeni oyuncular için ESP
+game.Players.PlayerAdded:Connect(function(player)
+    if ESPEnabled then
+        player.CharacterAdded:Connect(function()
+            wait(0.5)
+            createESP(player)
+        end)
+    end
+end)
+
+-- Oyuncular ayrıldığında temizle
+game.Players.PlayerRemoving:Connect(function(player)
+    removeESP(player)
+end)
 
 local AimSectionTab = Window:MakeTab({
     Name = "Aimbot",
@@ -61,27 +119,7 @@ local AimSection = AimSectionTab:AddSection({
     Name = "Aim Section"
 })
 
--- DÜZELTME: Eksik olan aimbot özelliklerini ekledim
-AimSection:AddToggle({
-    Name = "Enable Aimbot",
-    Default = false,
-    Callback = function(Value)
-        -- Aimbot fonksiyonu henüz yok, eklenmeli
-        print("Aimbot: " .. tostring(Value))
-    end
-})
-
-AimSection:AddSlider({
-    Name = "Aimbot FOV",
-    Min = 50,
-    Max = 500,
-    Default = 200,
-    Color = Color3.fromRGB(255, 255, 255),
-    Increment = 10,
-    Callback = function(Value)
-        print("FOV: " .. Value)
-    end
-})
+AimSection:AddLabel("Aimbot features coming soon...")
 
 -- Initialize Orion
 OrionLib:Init()
