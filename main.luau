@@ -1,6 +1,6 @@
 -- main.luau - Aqwoz Hub
 local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Orion/main/source'))()
-
+OrionLib.Settings.UseFeatherIcons = false 
 -- Vision module
 local visionURL = "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/visionScripts.luau"
 local visionScripts = loadstring(game:HttpGet(visionURL))()
@@ -84,4 +84,5 @@ AimSection:AddSlider({
 
 -- Initialize
 OrionLib:Init()
+
 
