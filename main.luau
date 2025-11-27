@@ -63,7 +63,7 @@ local AimSection = AimSectionTab:AddSection({
 })
 
 AimSection:AddToggle({
-    Name = "Enable Aimbot",
+    Name = "Enable SilentAim",
     Default = false,
     Callback = function(Value)
         aimbotScripts.toggleAimbot(Value)
@@ -71,7 +71,7 @@ AimSection:AddToggle({
 })
 
 AimSection:AddSlider({
-    Name = "Aimbot FOV",
+    Name = "SilentAim FOV",
     Min = 50,
     Max = 500,
     Default = 200,
@@ -84,3 +84,4 @@ AimSection:AddSlider({
 
 -- Initialize
 OrionLib:Init()
+
