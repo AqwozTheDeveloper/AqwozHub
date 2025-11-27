@@ -1,18 +1,21 @@
 -- main.luau - Aqwoz Hub
 local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Orion/main/source'))()
 
--- Vision module'u GitHub'dan çek (senin fixed versiyonunu kullan)
+-- Vision module
 local visionURL = "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/visionScripts.luau"
 local visionScripts = loadstring(game:HttpGet(visionURL))()
-
--- Module'u başlat
 visionScripts.init()
+
+-- Aimbot module
+local aimbotURL = "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/aimbotScripts.luau"
+local aimbotScripts = loadstring(game:HttpGet(aimbotURL))()
+aimbotScripts.init()
 
 -- Window
 local Window = OrionLib:MakeWindow({
-    Name = "Aqwoz Hub", 
-    HidePremium = false, 
-    SaveConfig = true, 
+    Name = "Aqwoz Hub",
+    HidePremium = false,
+    SaveConfig = true,
     ConfigFolder = "OrionConfig"
 })
 
@@ -48,14 +51,6 @@ VisionTab:AddToggle({
     end
 })
 
-VisionTab:AddColorPicker({
-    Name = "ESP Color",
-    Default = Color3.fromRGB(255, 255, 255),
-    Callback = function(Value)
-        visionScripts.setESPColor(Value)
-    end
-})
-
 -- Aimbot Tab
 local AimSectionTab = Window:MakeTab({
     Name = "Aimbot",
@@ -71,8 +66,7 @@ AimSection:AddToggle({
     Name = "Enable Aimbot",
     Default = false,
     Callback = function(Value)
-        print("Aimbot: " .. tostring(Value))
-        -- Aimbot fonksiyonu buraya gelecek
+        aimbotScripts.toggleAimbot(Value)
     end
 })
 
@@ -84,7 +78,7 @@ AimSection:AddSlider({
     Color = Color3.fromRGB(255, 255, 255),
     Increment = 10,
     Callback = function(Value)
-        print("FOV: " .. Value)
+        aimbotScripts.setFOV(Value)
     end
 })
 
