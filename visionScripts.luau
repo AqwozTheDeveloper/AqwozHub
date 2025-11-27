@@ -1,4 +1,4 @@
--- visionScripts.luau (Safe Version - No Nil Errors)
+-- visionScripts.luau (Safe & Crash-Free)
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
