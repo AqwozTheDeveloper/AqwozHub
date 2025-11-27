@@ -3,27 +3,14 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
 
 local module = {}
 
 local aimbotEnabled = false
 local aimbotFOV = 200
 local aimbotConnection = nil
-local fovCircle = nil
-
--- FOV Circle oluştur
-local function createFOVCircle()
-    if fovCircle then fovCircle:Remove() end
-
-    fovCircle = Drawing.new("Circle")
-    fovCircle.Thickness = 2
-    fovCircle.NumSides = 50
-    fovCircle.Radius = aimbotFOV
-    fovCircle.Color = Color3.fromRGB(255, 255, 255)
-    fovCircle.Transparency = 0.5
-    fovCircle.Visible = false
-    fovCircle.Filled = false
-end
+local aimbotSmoothing = 0.1 -- Daha smooth aim için
 
 -- En yakın oyuncuyu bul
 local function getClosestPlayer()
@@ -33,7 +20,7 @@ local function getClosestPlayer()
     local mousePos = UserInputService:GetMouseLocation()
 
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= Players.LocalPlayer and player.Character then
+        if player ~= LocalPlayer and player.Character then
             local humanoid = player.Character:FindFirstChild("Humanoid")
             local head = player.Character:FindFirstChild("Head")
 
@@ -55,7 +42,7 @@ local function getClosestPlayer()
     return closestPlayer
 end
 
--- Aimbot loop
+-- Aimbot loop (Smooth)
 local function aimbotLoop()
     if not aimbotEnabled then return end
 
@@ -65,27 +52,20 @@ local function aimbotLoop()
         local head = target.Character:FindFirstChild("Head")
 
         if head then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, head.Position)
+            -- Kamerayı hedefin kafasına yönlendir
+            local targetCFrame = CFrame.new(Camera.CFrame.Position, head.Position)
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, aimbotSmoothing)
         end
     end
 end
 
 function module.init()
-    createFOVCircle()
-
-    -- FOV Circle güncelleme
-    RunService.RenderStepped:Connect(function()
-        if fovCircle then
-            local mousePos = UserInputService:GetMouseLocation()
-            fovCircle.Position = mousePos
-            fovCircle.Radius = aimbotFOV
-            fovCircle.Visible = aimbotEnabled
-        end
-    end)
+    print("[Aimbot] Module initialized")
 end
 
 function module.toggleAimbot(state)
     aimbotEnabled = state
+    print("[Aimbot] Toggled:", state)
 
     if state then
         -- Aimbot açık
@@ -105,9 +85,12 @@ end
 
 function module.setFOV(value)
     aimbotFOV = value
-    if fovCircle then
-        fovCircle.Radius = value
-    end
+    print("[Aimbot] FOV set to:", value)
+end
+
+function module.setSmoothing(value)
+    aimbotSmoothing = value
+    print("[Aimbot] Smoothing set to:", value)
 end
 
 function module.destroy()
@@ -116,11 +99,6 @@ function module.destroy()
     if aimbotConnection then
         aimbotConnection:Disconnect()
         aimbotConnection = nil
-    end
-
-    if fovCircle then
-        fovCircle:Remove()
-        fovCircle = nil
     end
 end
 
