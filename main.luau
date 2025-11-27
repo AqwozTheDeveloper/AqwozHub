@@ -1,38 +1,35 @@
--- main.luau - Aqwoz Hub (Debug Version)
+-- main.luau - Aqwoz Hub (Clean Version)
 print("[Main] Script starting...")
 
-local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Orion/main/source'))()
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+-- Load OrionLib
+local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source'))()
 print("[Main] OrionLib loaded")
 
--- Vision module'u GitHub'dan çek
+-- Vision module
 local visionURL = "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/visionScripts.luau"
-print("[Main] Loading vision module from:", visionURL)
+print("[Main] Loading vision module...")
 
 local success, visionScripts = pcall(function()
     return loadstring(game:HttpGet(visionURL))()
 end)
 
-if not success then
-    print("[Main] ERROR: Vision module failed to load!")
-    print("[Main] Error:", visionScripts)
-    -- Fallback sistemi kullan
-    warn("[Main] Using fallback ESP system...")
-else
-    print("[Main] Vision module loaded successfully!")
-    -- Module'u başlat
-    local initSuccess = pcall(function()
+if success then
+    print("[Main] Vision module loaded!")
+    pcall(function()
         visionScripts.init()
-    end)
-    if initSuccess then
         print("[Main] Vision module initialized!")
-    else
-        print("[Main] ERROR: Failed to initialize vision module")
-    end
+    end)
+else
+    warn("[Main] Failed to load vision module:", visionScripts)
 end
 
 -- Window
 local Window = OrionLib:MakeWindow({
-    Name = "Aqwoz Hub [DEBUG]", 
+    Name = "Aqwoz Hub", 
     HidePremium = false, 
     SaveConfig = true, 
     ConfigFolder = "OrionConfig"
@@ -41,62 +38,48 @@ print("[Main] Window created")
 
 -- Notification
 OrionLib:MakeNotification({
-    Name = "Welcome to AqwozHub",
-    Content = "Debug version - Check console (F9) for errors",
+    Name = "Aqwoz Hub",
+    Content = "Loaded successfully!",
     Image = "rbxassetid://4483345998",
-    Time = 5
+    Time = 3
 })
 
--- Ana Tab
-local AqwozHub = Window:MakeTab({
-    Name = "AqwozHub",
+-- Home Tab
+local HomeTab = Window:MakeTab({
+    Name = "Home",
     Icon = "rbxassetid://4483345998",
     PremiumOnly = false
 })
 
-AqwozHub:AddParagraph("Debug Mode", "Check F9 console for debug messages. ESP should work now!")
+HomeTab:AddParagraph("Welcome!", "Aqwoz Hub loaded. Use ESP tab to enable player vision.")
 
-AqwozHub:AddButton({
-    Name = "Print Player List",
-    Callback = function()
-        print("=== PLAYER LIST ===")
-        for _, plr in pairs(game.Players:GetPlayers()) do
-            print("Player:", plr.Name, "| Character:", plr.Character and "YES" or "NO")
-        end
-        print("==================")
-    end
-})
-
--- Vision Tab
-local VisionTab = Window:MakeTab({
-    Name = "Player Vision",
+-- ESP Tab
+local ESPTab = Window:MakeTab({
+    Name = "ESP",
     Icon = "rbxassetid://4483345998",
     PremiumOnly = false
 })
 
-VisionTab:AddToggle({
+ESPTab:AddToggle({
     Name = "Enable ESP",
     Default = false,
     Callback = function(Value)
-        print("[Main] ESP Toggle clicked:", Value)
+        print("[Main] ESP Toggle:", Value)
         if success and visionScripts then
-            local toggleSuccess = pcall(function()
+            pcall(function()
                 visionScripts.toggleESP(Value)
             end)
-            if not toggleSuccess then
-                print("[Main] ERROR: Failed to toggle ESP")
-            end
         else
-            print("[Main] ERROR: Vision module not loaded!")
+            warn("[Main] Vision module not available")
         end
     end
 })
 
-VisionTab:AddColorPicker({
+ESPTab:AddColorpicker({
     Name = "ESP Color",
     Default = Color3.fromRGB(0, 255, 100),
     Callback = function(Value)
-        print("[Main] Color changed to:", Value)
+        print("[Main] ESP Color:", Value)
         if success and visionScripts then
             pcall(function()
                 visionScripts.setESPColor(Value)
@@ -105,34 +88,61 @@ VisionTab:AddColorPicker({
     end
 })
 
-VisionTab:AddButton({
+ESPTab:AddButton({
+    Name = "Refresh ESP",
+    Callback = function()
+        if success and visionScripts then
+            print("[Main] Refreshing ESP...")
+            visionScripts.toggleESP(false)
+            wait(0.1)
+            visionScripts.toggleESP(true)
+        end
+    end
+})
+
+-- Debug Section
+local DebugSection = ESPTab:AddSection({
+    Name = "Debug"
+})
+
+DebugSection:AddButton({
+    Name = "Check Players",
+    Callback = function()
+        print("=== PLAYER CHECK ===")
+        for _, plr in pairs(Players:GetPlayers()) do
+            local hasChar = plr.Character ~= nil
+            local hasHRP = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") ~= nil
+            print(string.format("%s | Char: %s | HRP: %s", plr.Name, tostring(hasChar), tostring(hasHRP)))
+        end
+        print("====================")
+    end
+})
+
+DebugSection:AddButton({
     Name = "Check ESP Folder",
     Callback = function()
         local folder = workspace:FindFirstChild("VisionESP")
         if folder then
-            print("[Main] ESP Folder found! Children:", #folder:GetChildren())
+            print("[Main] ESP Folder found!")
+            print("[Main] Children:", #folder:GetChildren())
             for _, child in pairs(folder:GetChildren()) do
-                print("  -", child.Name, child.ClassName)
+                print("  -", child.Name)
             end
         else
-            print("[Main] ERROR: ESP Folder not found in workspace!")
+            warn("[Main] ESP Folder not found!")
         end
     end
 })
 
 -- Aimbot Tab
-local AimSectionTab = Window:MakeTab({
+local AimbotTab = Window:MakeTab({
     Name = "Aimbot",
     Icon = "rbxassetid://4483345998",
     PremiumOnly = false
 })
 
-local AimSection = AimSectionTab:AddSection({
-    Name = "Aim Section"
-})
-
-AimSection:AddLabel("Coming soon...")
+AimbotTab:AddLabel("Coming soon...")
 
 -- Initialize
 OrionLib:Init()
-print("[Main] Script loaded successfully!")
+print("[Main] Script fully loaded!")
