@@ -21,6 +21,7 @@ local function getClosestPlayer()
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
+            if player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team then continue end
             local humanoid = player.Character:FindFirstChild("Humanoid")
             local head = player.Character:FindFirstChild("Head")
 
@@ -44,7 +45,7 @@ end
 
 -- Aimbot loop (Smooth)
 local function aimbotLoop()
-    if not aimbotEnabled then return end
+    if not aimbotEnabled or not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then return end
 
     local target = getClosestPlayer()
 
