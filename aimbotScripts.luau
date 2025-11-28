@@ -10,13 +10,12 @@ local module = {}
 local aimbotEnabled = false
 local aimbotFOV = 200
 local aimbotConnection = nil
-local aimbotSmoothing = 0.5 -- Daha agresif lock için (başlangıç değeri)
+local aimbotSmoothing = 0.5
 local teamCheckEnabled = false
 local wallCheckEnabled = false
 local silentAimEnabled = false
-local silentAimConnection = nil
 
--- Mouse objesini güvenli şekilde al
+-- Mouse objesini al
 local mouse = nil
 local function getMouse()
     if not mouse then
@@ -42,13 +41,19 @@ local function createFOVCircle()
         fovCircle:Remove()
     end
     
-    fovCircle = Drawing.new("Circle")
-    fovCircle.Visible = fovCircleVisible
-    fovCircle.Thickness = 2
-    fovCircle.Color = fovCircleColor
-    fovCircle.Transparency = 1
-    fovCircle.NumSides = 64
-    fovCircle.Filled = false
+    local success, result = pcall(function()
+        return Drawing.new("Circle")
+    end)
+    
+    if success then
+        fovCircle = result
+        fovCircle.Visible = fovCircleVisible
+        fovCircle.Thickness = 2
+        fovCircle.Color = fovCircleColor
+        fovCircle.Transparency = 1
+        fovCircle.NumSides = 64
+        fovCircle.Filled = false
+    end
 end
 
 -- FOV Circle güncelle
@@ -71,6 +76,7 @@ end
 -- Raycast ile duvar kontrolü
 local function isVisible(targetPosition)
     if not wallCheckEnabled then return true end
+    if not LocalPlayer.Character then return false end
     
     local cameraPosition = Camera.CFrame.Position
     local raycastParams = RaycastParams.new()
@@ -79,11 +85,7 @@ local function isVisible(targetPosition)
     
     local raycastResult = workspace:Raycast(cameraPosition, (targetPosition - cameraPosition), raycastParams)
     
-    if raycastResult then
-        return false
-    end
-    
-    return true
+    return raycastResult == nil
 end
 
 -- Takım kontrolü
@@ -99,25 +101,22 @@ end
 
 -- En yakın oyuncuyu bul
 local function getClosestPlayer()
-    local closestPlayer = nil
-    local shortestDistance = aimbotFOV
-
     if not Camera then
         Camera = workspace.CurrentCamera
         if not Camera then return nil end
     end
 
+    local closestPlayer = nil
+    local shortestDistance = aimbotFOV
     local mousePos = UserInputService:GetMouseLocation()
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
-            -- Takım kontrolü
             if isEnemy(player) then
                 local humanoid = player.Character:FindFirstChild("Humanoid")
                 local head = player.Character:FindFirstChild("Head")
 
                 if humanoid and humanoid.Health > 0 and head then
-                    -- Duvar kontrolü
                     if isVisible(head.Position) then
                         local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
 
@@ -138,7 +137,7 @@ local function getClosestPlayer()
     return closestPlayer
 end
 
--- Aimbot loop (Smooth) - Normal aimbot
+-- Aimbot loop - Normal aimbot
 local function aimbotLoop()
     if not aimbotEnabled or silentAimEnabled then return end
     
@@ -151,31 +150,16 @@ local function aimbotLoop()
 
     if target and target.Character then
         local head = target.Character:FindFirstChild("Head")
-        local humanoidRootPart = target.Character:FindFirstChild("HumanoidRootPart")
 
         if head then
-            -- Kamerayı hedefin kafasına yönlendir
             local cameraPos = Camera.CFrame.Position
             local headPos = head.Position
             local targetCFrame = CFrame.new(cameraPos, headPos)
             
-            -- Smoothing uygula - daha agresif lock için
-            local success, err = pcall(function()
-                -- Eğer smoothing çok düşükse direkt lock yap
-                if aimbotSmoothing > 0.3 then
-                    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, aimbotSmoothing)
-                else
-                    -- Daha agresif lock
-                    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.max(aimbotSmoothing, 0.15))
-                end
+            -- Camera'yı hedefe yönlendir
+            pcall(function()
+                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, aimbotSmoothing)
             end)
-            
-            if not success then
-                -- Hata varsa direkt lock dene
-                pcall(function()
-                    Camera.CFrame = targetCFrame
-                end)
-            end
         end
     end
 end
@@ -188,14 +172,12 @@ local mouseMeta = nil
 local function setupSilentAim()
     if not silentAimEnabled or originalMouseHit then return end
     
-    -- Mouse objesini al
     local mouseObj = getMouse()
     if not mouseObj then
         warn("[Aimbot] Failed to get mouse object")
         return
     end
     
-    -- Mouse objesini hook et
     local success, meta = pcall(function()
         return getrawmetatable(mouseObj)
     end)
@@ -220,7 +202,6 @@ local function setupSilentAim()
                     local targetPosition = head.Position
                     local direction = (targetPosition - cameraPosition).Unit
                     
-                    -- Smoothing için mevcut hit'i al
                     local currentHit = originalMouseHit(self, key)
                     if not lastHitCFrame then
                         lastHitCFrame = currentHit
@@ -256,14 +237,11 @@ end
 function module.init()
     print("[Aimbot] Module initialized")
     
-    -- Mouse'u başlat
     task.spawn(function()
         task.wait(1)
         getMouse()
         if mouse then
             print("[Aimbot] Mouse object loaded")
-        else
-            warn("[Aimbot] Mouse object not found - Silent Aim may not work")
         end
     end)
     
@@ -275,23 +253,19 @@ function module.toggleAimbot(state)
     print("[Aimbot] Toggled:", state)
 
     if state then
-        -- Aimbot açık
         if aimbotConnection then
             aimbotConnection:Disconnect()
         end
 
-        -- Camera'yı güncelle
         Camera = workspace.CurrentCamera
         
         if silentAimEnabled then
             setupSilentAim()
         else
-            -- RenderStepped yerine Heartbeat kullan (daha iyi performans)
             aimbotConnection = RunService.Heartbeat:Connect(aimbotLoop)
             print("[Aimbot] Aimbot loop started")
         end
     else
-        -- Aimbot kapalı
         if aimbotConnection then
             aimbotConnection:Disconnect()
             aimbotConnection = nil
@@ -306,19 +280,16 @@ function module.toggleSilentAim(state)
     print("[Aimbot] Silent Aim:", state)
     
     if state then
-        -- Silent aim açık - normal aimbot'u kapat
         if aimbotConnection then
             aimbotConnection:Disconnect()
             aimbotConnection = nil
         end
-        -- Aimbot açık değilse uyar
         if not aimbotEnabled then
             warn("[Aimbot] Silent Aim requires Aimbot to be enabled!")
             return
         end
         setupSilentAim()
     else
-        -- Silent aim kapalı - normal aimbot'a geç
         removeSilentAim()
         if aimbotEnabled then
             if aimbotConnection then
@@ -340,8 +311,6 @@ function module.setFOV(value)
 end
 
 function module.setSmoothing(value)
-    -- Slider 1-10 arası değer gönderiyor, 0.1-1.0 arasına çevir (daha agresif lock için)
-    -- 1 = çok smooth, 10 = çok agresif/direkt lock
     aimbotSmoothing = math.clamp(value / 10, 0.1, 1.0)
     print("[Aimbot] Smoothing set to:", aimbotSmoothing, "(Value:", value, ")")
 end
@@ -394,11 +363,6 @@ function module.destroy()
     if aimbotConnection then
         aimbotConnection:Disconnect()
         aimbotConnection = nil
-    end
-    
-    if silentAimConnection then
-        silentAimConnection:Disconnect()
-        silentAimConnection = nil
     end
     
     removeSilentAim()
