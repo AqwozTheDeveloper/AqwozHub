@@ -30,16 +30,33 @@ local function loadModule(path, url)
     else
         warn("[AqwozHub] Critical Error loading module: " .. tostring(result))
         -- Return dummy object to prevent crash
-        return { init = function() end, toggleESP = function() end, toggleAimbot = function() end, setFOV = function() end }
+        return {
+            init = function() end,
+            -- Vision API
+            toggleESP = function() end,
+            -- Aimbot API
+            toggleAimbot = function() end,
+            setFOV = function() end,
+            setSmoothing = function() end,
+            toggleTeamCheck = function() end,
+            toggleWallCheck = function() end,
+            -- Silent Aim API
+            toggleSilentAim = function() end,
+            toggleSilentAimRequireMouse = function() end,
+            setSilentAimHitPart = function() end,
+            setSilentAimLeadMs = function() end,
+            setSilentAimStickiness = function() end,
+            toggleSilentAimOnScreenOnly = function() end,
+        }
     end
 end
 
 -- Vision module
-local visionScripts = loadModule("AqwozHub/visionScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/visionScripts.luau")
+local visionScripts = loadModule("AqwozHub/visionScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/main/visionScripts.luau")
 visionScripts.init()
 
 -- Aimbot module
-local aimbotScripts = loadModule("AqwozHub/aimbotScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/aimbotScripts.luau")
+local aimbotScripts = loadModule("AqwozHub/aimbotScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/main/aimbotScripts.luau")
 aimbotScripts.init()
 
 -- Window
