@@ -98,6 +98,36 @@ CombatTab:CreateToggle({
    end,
 })
 
+CombatTab:CreateToggle({
+   Name = "Team Check",
+   CurrentValue = false,
+   Flag = "TeamCheck",
+   Callback = function(Value)
+        aimbotScripts.toggleTeamCheck(Value)
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Wall Check",
+   CurrentValue = false,
+   Flag = "WallCheck",
+   Callback = function(Value)
+        aimbotScripts.toggleWallCheck(Value)
+   end,
+})
+
+CombatTab:CreateSlider({
+   Name = "Smoothing",
+   Range = {1, 10},
+   Increment = 1,
+   Suffix = "",
+   CurrentValue = 5,
+   Flag = "Smoothing",
+   Callback = function(Value)
+        aimbotScripts.setSmoothing(Value)
+   end,
+})
+
 CombatTab:CreateSlider({
    Name = "Aimbot FOV",
    Range = {10, 500},
