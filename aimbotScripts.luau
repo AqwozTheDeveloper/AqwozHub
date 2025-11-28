@@ -13,81 +13,56 @@ local aimbotConnection = nil
 local aimbotSmoothing = 0.1
 local teamCheckEnabled = false
 local wallCheckEnabled = false
-local silentAimEnabled = false
-local namecallHooked = false
-local originalNamecall = nil
-local silentAimRequireMouse = false
-local silentAimLead = 0.05
-local silentAimHitPart = "Head"
-local silentAimStickFrames = 6
-local silentAimOnScreenOnly = true
-local lastTarget = nil
-local stickCounter = 0
-local silentAimUpdateConn = nil
 local aimHoldEnabled = false
-local aimHoldKey = Enum.KeyCode.Q
-local targetPriorityMode = "Mouse"
+local aimHoldActive = false
+local inputBeganConn = nil
+local inputEndedConn = nil
+local toggleKeyEnabled = false
+local toggleKeyCode = Enum.KeyCode.F
 local fovCircleEnabled = false
-local fovCircle = nil
-local fovCircleConn = nil
+local fovGui = nil
+local fovFrame = nil
+local fovConnection = nil
 
 -- En yakın oyuncuyu bul
 local function getClosestPlayer()
     local closestPlayer = nil
     local shortestDistance = aimbotFOV
-    local bestWorldDist = math.huge
-    local bestHealth = math.huge
 
     local mousePos = UserInputService:GetMouseLocation()
+
+    local function isVisible(targetChar, targetPart)
+        if not wallCheckEnabled then
+            return true
+        end
+        local origin = Camera.CFrame.Position
+        local direction = (targetPart.Position - origin)
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances = {LocalPlayer.Character}
+        local result = workspace:Raycast(origin, direction, params)
+        if not result then
+            return true
+        end
+        return result.Instance and result.Instance:IsDescendantOf(targetChar)
+    end
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local humanoid = player.Character:FindFirstChild("Humanoid")
-            local head = player.Character:FindFirstChild("Head")
+            local part = getTargetPart(player.Character)
 
-            if humanoid and humanoid.Health > 0 and head then
-                if teamCheckEnabled and LocalPlayer.Team and player.Team and LocalPlayer.Team == player.Team then
+            if humanoid and humanoid.Health > 0 and part then
+                if teamCheckEnabled and player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team then
                     
                 else
-                    local obstructed = false
-                    if wallCheckEnabled then
-                        local params = RaycastParams.new()
-                        params.FilterType = Enum.RaycastFilterType.Exclude
-                        params.FilterDescendantsInstances = {LocalPlayer.Character}
-                        local direction = head.Position - Camera.CFrame.Position
-                        local result = workspace:Raycast(Camera.CFrame.Position, direction, params)
-                        if result and not result.Instance:IsDescendantOf(player.Character) then
-                            obstructed = true
-                        end
-                    end
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
 
-                    if not obstructed then
-                        local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-                        if not silentAimOnScreenOnly or onScreen then
-                            local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                            if distance < shortestDistance then
-                                if targetPriorityMode == "Mouse" then
-                                    closestPlayer = player
-                                    shortestDistance = distance
-                                else
-                                    local lpRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                                    local worldDist = lpRoot and (lpRoot.Position - head.Position).Magnitude or (Camera.CFrame.Position - head.Position).Magnitude
-                                    local health = humanoid.Health
-                                    if targetPriorityMode == "Distance" then
-                                        if worldDist < bestWorldDist then
-                                            bestWorldDist = worldDist
-                                            closestPlayer = player
-                                            shortestDistance = distance
-                                        end
-                                    elseif targetPriorityMode == "Health" then
-                                        if health < bestHealth then
-                                            bestHealth = health
-                                            closestPlayer = player
-                                            shortestDistance = distance
-                                        end
-                                    end
-                                end
-                            end
+                    if onScreen and isVisible(player.Character, part) then
+                        local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                        if distance < shortestDistance then
+                            closestPlayer = player
+                            shortestDistance = distance
                         end
                     end
                 end
@@ -100,17 +75,20 @@ end
 
 -- Aimbot loop (Smooth)
 local function aimbotLoop()
-    if not aimbotEnabled or silentAimEnabled then return end
-    if aimHoldEnabled and not UserInputService:IsKeyDown(aimHoldKey) then return end
+    if not aimbotEnabled then return end
+    if aimHoldEnabled and not aimHoldActive then return end
 
     local target = getClosestPlayer()
 
     if target and target.Character then
-        local head = target.Character:FindFirstChild("Head")
+        local part = getTargetPart(target.Character)
 
-        if head then
+        if part then
             -- Kamerayı hedefin kafasına yönlendir
-            local targetCFrame = CFrame.new(Camera.CFrame.Position, head.Position)
+            local toTarget = (part.Position - Camera.CFrame.Position).Unit
+            local angle = math.deg(math.acos(math.clamp(Camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
+            if angle > maxAngleDeg then return end
+            local targetCFrame = CFrame.new(Camera.CFrame.Position, part.Position)
             Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, aimbotSmoothing)
         end
     end
@@ -118,13 +96,25 @@ end
 
 function module.init()
     print("[Aimbot] Module initialized")
-    if typeof(Drawing) == "table" and typeof(Drawing.new) == "function" then
-        fovCircle = Drawing.new("Circle")
-        fovCircle.Radius = aimbotFOV
-        fovCircle.Thickness = 1
-        fovCircle.Filled = false
-        fovCircle.Color = Color3.fromRGB(255, 255, 255)
-        fovCircle.Visible = false
+    if not inputBeganConn then
+        inputBeganConn = UserInputService.InputBegan:Connect(function(input, gpe)
+            if gpe then return end
+            if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                aimHoldActive = true
+            elseif input.KeyCode == toggleKeyCode then
+                if toggleKeyEnabled then
+                    module.toggleAimbot(not aimbotEnabled)
+                end
+            end
+        end)
+    end
+    if not inputEndedConn then
+        inputEndedConn = UserInputService.InputEnded:Connect(function(input, gpe)
+            if gpe then return end
+            if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                aimHoldActive = false
+            end
+        end)
     end
 end
 
@@ -149,17 +139,119 @@ function module.toggleAimbot(state)
 end
 
 function module.setFOV(value)
-    aimbotFOV = value
+    aimbotFOV = math.max(1, tonumber(value) or aimbotFOV)
     print("[Aimbot] FOV set to:", value)
-    if fovCircle then
-        fovCircle.Radius = value
-    end
 end
 
 function module.setSmoothing(value)
-    local alpha = math.clamp(value / 10, 0.01, 1)
-    aimbotSmoothing = alpha
-    print("[Aimbot] Smoothing set to:", alpha)
+    local v = tonumber(value) or 1
+    aimbotSmoothing = math.clamp(v / 10, 0.05, 1)
+    print("[Aimbot] Smoothing set to:", value)
+end
+
+function module.toggleTeamCheck(state)
+    teamCheckEnabled = state and true or false
+    print("[Aimbot] TeamCheck:", teamCheckEnabled)
+end
+
+function module.toggleWallCheck(state)
+    wallCheckEnabled = state and true or false
+    print("[Aimbot] WallCheck:", wallCheckEnabled)
+end
+
+function module.toggleHoldToAim(state)
+    aimHoldEnabled = state and true or false
+    print("[Aimbot] HoldToAim:", aimHoldEnabled)
+end
+
+function module.toggleKeyToggle(state)
+    toggleKeyEnabled = state and true or false
+    print("[Aimbot] KeyToggle:", toggleKeyEnabled, "Key:", tostring(toggleKeyCode))
+end
+
+function module.setToggleKey(key)
+    local newKey = toggleKeyCode
+    if typeof(key) == "EnumItem" and key.EnumType == Enum.KeyCode then
+        newKey = key
+    elseif type(key) == "string" and Enum.KeyCode[key] then
+        newKey = Enum.KeyCode[key]
+    end
+    toggleKeyCode = newKey
+    print("[Aimbot] Toggle key set to:", tostring(toggleKeyCode))
+end
+
+function module.setTargetPart(name)
+    local allowed = {
+        Head = true,
+        UpperTorso = true
+    }
+    if type(name) == "string" and allowed[name] then
+        targetPartName = name
+    end
+    print("[Aimbot] TargetPart:", targetPartName)
+end
+
+function module.setMaxAngle(deg)
+    local v = tonumber(deg) or maxAngleDeg
+    maxAngleDeg = math.clamp(v, 5, 180)
+    print("[Aimbot] MaxAngle:", maxAngleDeg)
+end
+
+local function ensureFOVGui()
+    if fovGui and fovFrame then return true end
+    local pg = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui")
+    if not pg then return false end
+    fovGui = Instance.new("ScreenGui")
+    fovGui.Name = "AqwozHubFOV"
+    fovGui.IgnoreGuiInset = true
+    fovGui.ResetOnSpawn = false
+    fovGui.Parent = pg
+    fovFrame = Instance.new("Frame")
+    fovFrame.Name = "FOVCircle"
+    fovFrame.BackgroundTransparency = 1
+    fovFrame.Position = UDim2.fromOffset(0, 0)
+    fovFrame.Size = UDim2.fromOffset(aimbotFOV * 2, aimbotFOV * 2)
+    fovFrame.ZIndex = 100
+    fovFrame.Parent = fovGui
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 2
+    stroke.Transparency = 0.3
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+    stroke.Parent = fovFrame
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = fovFrame
+    return true
+end
+
+local function updateFOVCircle()
+    if not fovCircleEnabled then return end
+    if not fovGui or not fovFrame then return end
+    local mouse = UserInputService:GetMouseLocation()
+    fovFrame.Size = UDim2.fromOffset(aimbotFOV * 2, aimbotFOV * 2)
+    fovFrame.Position = UDim2.fromOffset(mouse.X - aimbotFOV, mouse.Y - aimbotFOV)
+end
+
+function module.toggleFOVCircle(state)
+    fovCircleEnabled = state and true or false
+    print("[Aimbot] FOVCircle:", fovCircleEnabled)
+    if fovCircleEnabled then
+        if ensureFOVGui() then
+            fovFrame.Visible = true
+            updateFOVCircle()
+            if not fovConnection then
+                fovConnection = RunService.RenderStepped:Connect(updateFOVCircle)
+            end
+        end
+    else
+        if fovConnection then
+            fovConnection:Disconnect()
+            fovConnection = nil
+        end
+        if fovFrame then
+            fovFrame.Visible = false
+        end
+    end
 end
 
 function module.destroy()
@@ -169,210 +261,22 @@ function module.destroy()
         aimbotConnection:Disconnect()
         aimbotConnection = nil
     end
-end
-
-function module.toggleTeamCheck(state)
-    teamCheckEnabled = state
-    print("[Aimbot] TeamCheck:", state)
-end
-
-function module.toggleWallCheck(state)
-    wallCheckEnabled = state
-    print("[Aimbot] WallCheck:", state)
-end
-
-local function getAimPoint()
-    local target = lastTarget or getClosestPlayer()
-    if target and target.Character then
-        local part = target.Character:FindFirstChild(silentAimHitPart)
-        if not part then
-            part = target.Character:FindFirstChild("Head") or target.Character:FindFirstChild("UpperTorso") or target.Character:FindFirstChild("HumanoidRootPart")
-        end
-        if part then
-            local pos = part.Position
-            local root = target.Character:FindFirstChild("HumanoidRootPart")
-            if root then
-                local vel = root.Velocity
-                pos = pos + vel * silentAimLead
-            end
-            return pos
-        end
+    if inputBeganConn then
+        inputBeganConn:Disconnect()
+        inputBeganConn = nil
     end
-    return nil
-end
-
-local function ensureSilentAimHook()
-    if namecallHooked then return end
-    if typeof(hookmetamethod) == "function" and typeof(getnamecallmethod) == "function" and typeof(checkcaller) == "function" then
-        local old
-        old = hookmetamethod(game, "__namecall", function(self, ...)
-            local method = getnamecallmethod()
-            if silentAimEnabled and not checkcaller() then
-                if silentAimRequireMouse and not UserInputService:IsMouseButtonPressed(Enum.MouseButton1) then
-                    return old(self, ...)
-                end
-                if aimHoldEnabled and not UserInputService:IsKeyDown(aimHoldKey) then
-                    return old(self, ...)
-                end
-                if method == "Raycast" then
-                    local origin, direction, params = ...
-                    if origin and direction then
-                        local aim = getAimPoint()
-                        if aim then
-                            local newDirection = (aim - origin).Unit * direction.Magnitude
-                            return old(self, origin, newDirection, params)
-                        end
-                    end
-                elseif method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRayWithWhitelist" then
-                    local ray, a2, a3, a4 = ...
-                    if ray and ray.Origin and ray.Direction then
-                        local aim = getAimPoint()
-                        if aim then
-                            local newDirection = (aim - ray.Origin).Unit * ray.Direction.Magnitude
-                            local newRay = Ray.new(ray.Origin, newDirection)
-                            return old(self, newRay, a2, a3, a4)
-                        end
-                    end
-                end
-            end
-            return old(self, ...)
-        end)
-        originalNamecall = old
-        namecallHooked = true
-        return
+    if inputEndedConn then
+        inputEndedConn:Disconnect()
+        inputEndedConn = nil
     end
-    local mt = getrawmetatable and getrawmetatable(game)
-    if mt and typeof(getnamecallmethod) == "function" and typeof(newcclosure) == "function" then
-        local old = mt.__namecall
-        if typeof(setreadonly) == "function" then setreadonly(mt, false) end
-        mt.__namecall = newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            if silentAimEnabled then
-                if silentAimRequireMouse and not UserInputService:IsMouseButtonPressed(Enum.MouseButton1) then
-                    return old(self, ...)
-                end
-                if aimHoldEnabled and not UserInputService:IsKeyDown(aimHoldKey) then
-                    return old(self, ...)
-                end
-                if method == "Raycast" then
-                    local origin, direction, params = ...
-                    if origin and direction then
-                        local aim = getAimPoint()
-                        if aim then
-                            local newDirection = (aim - origin).Unit * direction.Magnitude
-                            return old(self, origin, newDirection, params)
-                        end
-                    end
-                elseif method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRayWithWhitelist" then
-                    local ray, a2, a3, a4 = ...
-                    if ray and ray.Origin and ray.Direction then
-                        local aim = getAimPoint()
-                        if aim then
-                            local newDirection = (aim - ray.Origin).Unit * ray.Direction.Magnitude
-                            local newRay = Ray.new(ray.Origin, newDirection)
-                            return old(self, newRay, a2, a3, a4)
-                        end
-                    end
-                end
-            end
-            return old(self, ...)
-        end)
-        if typeof(setreadonly) == "function" then setreadonly(mt, true) end
-        originalNamecall = old
-        namecallHooked = true
+    if fovConnection then
+        fovConnection:Disconnect()
+        fovConnection = nil
     end
-end
-
-function module.toggleSilentAim(state)
-    silentAimEnabled = state
-    print("[Aimbot] SilentAim:", state)
-    if state then
-        ensureSilentAimHook()
-        if silentAimUpdateConn then silentAimUpdateConn:Disconnect() end
-        silentAimUpdateConn = RunService.RenderStepped:Connect(function()
-            local current = getClosestPlayer()
-            if current then
-                if current ~= lastTarget then
-                    lastTarget = current
-                    stickCounter = silentAimStickFrames
-                elseif stickCounter > 0 then
-                    stickCounter = stickCounter - 1
-                end
-            else
-                lastTarget = nil
-                stickCounter = 0
-            end
-        end)
-    else
-        if silentAimUpdateConn then
-            silentAimUpdateConn:Disconnect()
-            silentAimUpdateConn = nil
-        end
-        lastTarget = nil
-        stickCounter = 0
-    end
-end
-
-function module.toggleSilentAimRequireMouse(state)
-    silentAimRequireMouse = state
-    print("[Aimbot] SilentAim require LMB:", state)
-end
-
-function module.setSilentAimLeadMs(ms)
-    silentAimLead = math.clamp((ms or 0) / 1000, 0, 0.3)
-    print("[Aimbot] SilentAim lead:", silentAimLead)
-end
-
-function module.setSilentAimHitPart(part)
-    if type(part) == "string" and #part > 0 then
-        silentAimHitPart = part
-        print("[Aimbot] SilentAim hit part:", part)
-    end
-end
-
-function module.setSilentAimStickiness(frames)
-    silentAimStickFrames = math.clamp(frames or 0, 0, 30)
-    print("[Aimbot] SilentAim stickiness frames:", silentAimStickFrames)
-end
-
-function module.toggleSilentAimOnScreenOnly(state)
-    silentAimOnScreenOnly = state
-    print("[Aimbot] SilentAim on-screen only:", state)
-end
-
-function module.setAimHoldEnabled(state)
-    aimHoldEnabled = state
-    print("[Aimbot] Aim hold enabled:", state)
-end
-
-function module.setAimHoldKey(key)
-    local map = Enum.KeyCode
-    local kc = map[key] or map.Q
-    aimHoldKey = kc
-    print("[Aimbot] Aim hold key:", key)
-end
-
-function module.setTargetPriority(mode)
-    if mode == "Mouse" or mode == "Distance" or mode == "Health" then
-        targetPriorityMode = mode
-        print("[Aimbot] Target priority:", mode)
-    end
-end
-
-function module.toggleFOVCircle(state)
-    fovCircleEnabled = state
-    print("[Aimbot] FOV circle:", state)
-    if not fovCircle then return end
-    if state then
-        if fovCircleConn then fovCircleConn:Disconnect() end
-        fovCircle.Visible = true
-        fovCircleConn = RunService.RenderStepped:Connect(function()
-            local m = UserInputService:GetMouseLocation()
-            fovCircle.Position = Vector2.new(m.X, m.Y)
-        end)
-    else
-        if fovCircleConn then fovCircleConn:Disconnect() end
-        fovCircle.Visible = false
+    if fovGui then
+        fovGui:Destroy()
+        fovGui = nil
+        fovFrame = nil
     end
 end
 

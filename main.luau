@@ -32,31 +32,28 @@ local function loadModule(path, url)
         -- Return dummy object to prevent crash
         return {
             init = function() end,
-            -- Vision API
             toggleESP = function() end,
-            -- Aimbot API
             toggleAimbot = function() end,
             setFOV = function() end,
             setSmoothing = function() end,
             toggleTeamCheck = function() end,
             toggleWallCheck = function() end,
-            -- Silent Aim API
-            toggleSilentAim = function() end,
-            toggleSilentAimRequireMouse = function() end,
-            setSilentAimHitPart = function() end,
-            setSilentAimLeadMs = function() end,
-            setSilentAimStickiness = function() end,
-            toggleSilentAimOnScreenOnly = function() end,
+            toggleHoldToAim = function() end,
+            toggleFOVCircle = function() end,
+            toggleKeyToggle = function() end,
+            setToggleKey = function() end,
+            setTargetPart = function() end,
+            setMaxAngle = function() end
         }
     end
 end
 
 -- Vision module
-local visionScripts = loadModule("AqwozHub/visionScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/main/visionScripts.luau")
+local visionScripts = loadModule("visionScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/visionScripts.luau")
 visionScripts.init()
 
 -- Aimbot module
-local aimbotScripts = loadModule("AqwozHub/aimbotScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/main/aimbotScripts.luau")
+local aimbotScripts = loadModule("aimbotScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/aimbotScripts.luau")
 aimbotScripts.init()
 
 -- Window
@@ -116,67 +113,6 @@ CombatTab:CreateToggle({
 })
 
 CombatTab:CreateToggle({
-   Name = "Silent Aim",
-   CurrentValue = false,
-   Flag = "SilentAim",
-   Callback = function(Value)
-        aimbotScripts.toggleSilentAim(Value)
-   end,
-})
-
-CombatTab:CreateToggle({
-   Name = "Silent Aim Only on LMB",
-   CurrentValue = false,
-   Flag = "SilentAimRequireMouse",
-   Callback = function(Value)
-        aimbotScripts.toggleSilentAimRequireMouse(Value)
-   end,
-})
-
-CombatTab:CreateDropdown({
-   Name = "Silent Aim Hit Part",
-   Options = {"Head", "UpperTorso", "HumanoidRootPart"},
-   CurrentOption = "Head",
-   Flag = "SilentAimHitPart",
-   Callback = function(Option)
-        aimbotScripts.setSilentAimHitPart(Option)
-   end,
-})
-
-CombatTab:CreateSlider({
-   Name = "Silent Aim Lead (ms)",
-   Range = {0, 300},
-   Increment = 5,
-   Suffix = "ms",
-   CurrentValue = 50,
-   Flag = "SilentAimLeadMs",
-   Callback = function(Value)
-        aimbotScripts.setSilentAimLeadMs(Value)
-   end,
-})
-
-CombatTab:CreateSlider({
-   Name = "Target Stickiness (frames)",
-   Range = {0, 30},
-   Increment = 1,
-   Suffix = "",
-   CurrentValue = 6,
-   Flag = "SilentAimStickiness",
-   Callback = function(Value)
-        aimbotScripts.setSilentAimStickiness(Value)
-   end,
-})
-
-CombatTab:CreateToggle({
-   Name = "On-Screen Only Targets",
-   CurrentValue = true,
-   Flag = "SilentAimOnScreenOnly",
-   Callback = function(Value)
-        aimbotScripts.toggleSilentAimOnScreenOnly(Value)
-   end,
-})
-
-CombatTab:CreateToggle({
    Name = "Team Check",
    CurrentValue = false,
    Flag = "TeamCheck",
@@ -218,6 +154,49 @@ CombatTab:CreateSlider({
    end,
 })
 
+CombatTab:CreateSection("Targeting")
+
+CombatTab:CreateToggle({
+   Name = "Target Head",
+   CurrentValue = true,
+   Flag = "TargetHead",
+   Callback = function(Value)
+        if Value then aimbotScripts.setTargetPart("Head") end
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Target UpperTorso",
+   CurrentValue = false,
+   Flag = "TargetUpperTorso",
+   Callback = function(Value)
+        if Value then aimbotScripts.setTargetPart("UpperTorso") end
+   end,
+})
+
+CombatTab:CreateSlider({
+   Name = "Max Angle",
+   Range = {5, 180},
+   Increment = 5,
+   Suffix = "deg",
+   CurrentValue = 180,
+   Flag = "MaxAngle",
+   Callback = function(Value)
+        aimbotScripts.setMaxAngle(Value)
+   end,
+})
+
+CombatTab:CreateSection("Aim Assist UI")
+
+CombatTab:CreateToggle({
+   Name = "Hold to Aim (RMB)",
+   CurrentValue = false,
+   Flag = "HoldAim",
+   Callback = function(Value)
+        aimbotScripts.toggleHoldToAim(Value)
+   end,
+})
+
 CombatTab:CreateToggle({
    Name = "Show FOV Circle",
    CurrentValue = false,
@@ -227,31 +206,13 @@ CombatTab:CreateToggle({
    end,
 })
 
+CombatTab:CreateSection("Key Toggle")
+
 CombatTab:CreateToggle({
-   Name = "Aim Only While Key Held",
+   Name = "Enable F Key Toggle",
    CurrentValue = false,
-   Flag = "AimHoldEnabled",
+   Flag = "KeyToggle",
    Callback = function(Value)
-        aimbotScripts.setAimHoldEnabled(Value)
-   end,
-})
-
-CombatTab:CreateDropdown({
-   Name = "Aim Hold Key",
-   Options = {"Q", "E", "R", "F", "LeftAlt"},
-   CurrentOption = "Q",
-   Flag = "AimHoldKey",
-   Callback = function(Option)
-        aimbotScripts.setAimHoldKey(Option)
-   end,
-})
-
-CombatTab:CreateDropdown({
-   Name = "Target Priority",
-   Options = {"Mouse", "Distance", "Health"},
-   CurrentOption = "Mouse",
-   Flag = "TargetPriority",
-   Callback = function(Option)
-        aimbotScripts.setTargetPriority(Option)
+        aimbotScripts.toggleKeyToggle(Value)
    end,
 })
