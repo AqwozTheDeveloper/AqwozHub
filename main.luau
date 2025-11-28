@@ -49,7 +49,8 @@ local Window = OrionLib:MakeWindow({
     Name = "Aqwoz Hub",
     HidePremium = false,
     SaveConfig = false,
-    ConfigFolder = "OrionConfig"
+    ConfigFolder = "OrionConfig",
+    IntroEnabled = false
 })
 
 -- Notification
