@@ -3,10 +3,37 @@ local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/jens
 
 -- Module Loader
 local function loadModule(path, url)
+    -- 1. Try local file
     if isfile and isfile(path) then
-        return loadstring(readfile(path))()
+        print("[AqwozHub] Found local file: " .. path)
+        local success, result = pcall(function()
+            return loadstring(readfile(path))()
+        end)
+
+        if success then
+            print("[AqwozHub] Successfully loaded local module: " .. path)
+            return result
+        else
+            warn("[AqwozHub] Error loading local file: " .. tostring(result))
+        end
+    else
+        print("[AqwozHub] Local file not found: " .. path)
     end
-    return loadstring(game:HttpGet(url))()
+
+    -- 2. Fallback to GitHub URL with cache busting
+    print("[AqwozHub] Fetching from URL: " .. url)
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet(url .. "?t=" .. tostring(math.random(1, 1000000))))()
+    end)
+
+    if success then
+        print("[AqwozHub] Successfully loaded remote module")
+        return result
+    else
+        warn("[AqwozHub] Critical Error loading module: " .. tostring(result))
+        -- Return dummy object to prevent crash
+        return { init = function() end, toggleESP = function() end, toggleAimbot = function() end, setFOV = function() end }
+    end
 end
 
 -- Vision module
@@ -21,7 +48,7 @@ aimbotScripts.init()
 local Window = OrionLib:MakeWindow({
     Name = "Aqwoz Hub",
     HidePremium = false,
-    SaveConfig = true,
+    SaveConfig = false,
     ConfigFolder = "OrionConfig"
 })
 
