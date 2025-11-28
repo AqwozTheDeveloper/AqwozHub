@@ -13,6 +13,9 @@ local aimbotConnection = nil
 local aimbotSmoothing = 0.1
 local teamCheckEnabled = false
 local wallCheckEnabled = false
+local silentAimEnabled = false
+local namecallHooked = false
+local originalNamecall = nil
 
 -- En yakın oyuncuyu bul
 local function getClosestPlayer()
@@ -62,7 +65,7 @@ end
 
 -- Aimbot loop (Smooth)
 local function aimbotLoop()
-    if not aimbotEnabled then return end
+    if not aimbotEnabled or silentAimEnabled then return end
 
     local target = getClosestPlayer()
 
@@ -129,6 +132,71 @@ end
 function module.toggleWallCheck(state)
     wallCheckEnabled = state
     print("[Aimbot] WallCheck:", state)
+end
+
+local function getAimPoint()
+    local target = getClosestPlayer()
+    if target and target.Character then
+        local head = target.Character:FindFirstChild("Head")
+        if head then
+            return head.Position
+        end
+    end
+    return nil
+end
+
+local function ensureSilentAimHook()
+    if namecallHooked then return end
+    if typeof(hookmetamethod) == "function" and typeof(getnamecallmethod) == "function" and typeof(checkcaller) == "function" then
+        local old
+        old = hookmetamethod(game, "__namecall", function(self, ...)
+            local method = getnamecallmethod()
+            if silentAimEnabled and not checkcaller() and method == "Raycast" then
+                local origin, direction, params = ...
+                if origin and direction then
+                    local aim = getAimPoint()
+                    if aim then
+                        local newDirection = (aim - origin).Unit * direction.Magnitude
+                        return old(self, origin, newDirection, params)
+                    end
+                end
+            end
+            return old(self, ...)
+        end)
+        originalNamecall = old
+        namecallHooked = true
+        return
+    end
+    local mt = getrawmetatable and getrawmetatable(game)
+    if mt and typeof(getnamecallmethod) == "function" and typeof(newcclosure) == "function" then
+        local old = mt.__namecall
+        if typeof(setreadonly) == "function" then setreadonly(mt, false) end
+        mt.__namecall = newcclosure(function(self, ...)
+            local method = getnamecallmethod()
+            if silentAimEnabled and method == "Raycast" then
+                local origin, direction, params = ...
+                if origin and direction then
+                    local aim = getAimPoint()
+                    if aim then
+                        local newDirection = (aim - origin).Unit * direction.Magnitude
+                        return old(self, origin, newDirection, params)
+                    end
+                end
+            end
+            return old(self, ...)
+        end)
+        if typeof(setreadonly) == "function" then setreadonly(mt, true) end
+        originalNamecall = old
+        namecallHooked = true
+    end
+end
+
+function module.toggleSilentAim(state)
+    silentAimEnabled = state
+    print("[Aimbot] SilentAim:", state)
+    if state then
+        ensureSilentAimHook()
+    end
 end
 
 return module

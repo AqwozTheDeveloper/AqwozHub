@@ -99,6 +99,15 @@ CombatTab:CreateToggle({
 })
 
 CombatTab:CreateToggle({
+   Name = "Silent Aim",
+   CurrentValue = false,
+   Flag = "SilentAim",
+   Callback = function(Value)
+        aimbotScripts.toggleSilentAim(Value)
+   end,
+})
+
+CombatTab:CreateToggle({
    Name = "Team Check",
    CurrentValue = false,
    Flag = "TeamCheck",
