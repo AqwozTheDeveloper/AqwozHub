@@ -11,6 +11,9 @@ local aimbotEnabled = false
 local aimbotFOV = 200
 local aimbotConnection = nil
 local aimbotSmoothing = 0.1
+local dynamicSmoothingEnabled = false
+local aimbotMaxDistance = 0
+local currentTarget = nil
 local teamCheckEnabled = false
 local wallCheckEnabled = false
 local aimHoldEnabled = false
@@ -23,6 +26,22 @@ local fovCircleEnabled = false
 local fovGui = nil
 local fovFrame = nil
 local fovConnection = nil
+local fovStroke = nil
+local fovDefaultColor = Color3.fromRGB(255, 255, 255)
+local fovLockedColor = Color3.fromRGB(0, 255, 100)
+
+local targetPartName = "Head"
+local maxAngleDeg = 180
+
+local function getTargetPart(character)
+    local part = character:FindFirstChild(targetPartName)
+    if part then return part end
+    if targetPartName ~= "Head" then
+        local fallback = character:FindFirstChild("Head")
+        if fallback then return fallback end
+    end
+    return character:FindFirstChild("UpperTorso") or character:FindFirstChild("HumanoidRootPart")
+end
 
 -- En yakın oyuncuyu bul
 local function getClosestPlayer()
@@ -47,6 +66,27 @@ local function getClosestPlayer()
         return result.Instance and result.Instance:IsDescendantOf(targetChar)
     end
 
+    local function isValidPlayer(player)
+        if player == LocalPlayer or not player.Character then return false end
+        local humanoid = player.Character:FindFirstChild("Humanoid")
+        local part = getTargetPart(player.Character)
+        if not humanoid or humanoid.Health <= 0 or not part then return false end
+        if teamCheckEnabled and player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team then return false end
+        local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+        if not onScreen or not isVisible(player.Character, part) then return false end
+        local distancePixels = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+        if distancePixels >= shortestDistance then return false end
+        if aimbotMaxDistance and aimbotMaxDistance > 0 then
+            local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
+            if worldDist > aimbotMaxDistance then return false end
+        end
+        return true
+    end
+
+    if currentTarget and isValidPlayer(currentTarget) then
+        return currentTarget
+    end
+
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local humanoid = player.Character:FindFirstChild("Humanoid")
@@ -60,6 +100,12 @@ local function getClosestPlayer()
 
                     if onScreen and isVisible(player.Character, part) then
                         local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                        if aimbotMaxDistance and aimbotMaxDistance > 0 then
+                            local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
+                            if worldDist > aimbotMaxDistance then
+                                distance = math.huge
+                            end
+                        end
                         if distance < shortestDistance then
                             closestPlayer = player
                             shortestDistance = distance
@@ -89,8 +135,16 @@ local function aimbotLoop()
             local angle = math.deg(math.acos(math.clamp(Camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
             if angle > maxAngleDeg then return end
             local targetCFrame = CFrame.new(Camera.CFrame.Position, part.Position)
-            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, aimbotSmoothing)
+            local factor = aimbotSmoothing
+            if dynamicSmoothingEnabled and maxAngleDeg > 0 then
+                local ratio = math.clamp(angle / maxAngleDeg, 0.2, 1)
+                factor = math.clamp(aimbotSmoothing * ratio, 0.01, 1)
+            end
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, factor)
+            currentTarget = target
         end
+    else
+        currentTarget = nil
     end
 end
 
@@ -213,11 +267,11 @@ local function ensureFOVGui()
     fovFrame.Size = UDim2.fromOffset(aimbotFOV * 2, aimbotFOV * 2)
     fovFrame.ZIndex = 100
     fovFrame.Parent = fovGui
-    local stroke = Instance.new("UIStroke")
-    stroke.Thickness = 2
-    stroke.Transparency = 0.3
-    stroke.Color = Color3.fromRGB(255, 255, 255)
-    stroke.Parent = fovFrame
+    fovStroke = Instance.new("UIStroke")
+    fovStroke.Thickness = 2
+    fovStroke.Transparency = 0.3
+    fovStroke.Color = fovDefaultColor
+    fovStroke.Parent = fovFrame
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(1, 0)
     corner.Parent = fovFrame
@@ -230,6 +284,13 @@ local function updateFOVCircle()
     local mouse = UserInputService:GetMouseLocation()
     fovFrame.Size = UDim2.fromOffset(aimbotFOV * 2, aimbotFOV * 2)
     fovFrame.Position = UDim2.fromOffset(mouse.X - aimbotFOV, mouse.Y - aimbotFOV)
+    if fovStroke then
+        if currentTarget then
+            fovStroke.Color = fovLockedColor
+        else
+            fovStroke.Color = fovDefaultColor
+        end
+    end
 end
 
 function module.toggleFOVCircle(state)
@@ -252,6 +313,17 @@ function module.toggleFOVCircle(state)
             fovFrame.Visible = false
         end
     end
+end
+
+function module.setMaxDistance(value)
+    local v = tonumber(value) or 0
+    aimbotMaxDistance = math.max(0, v)
+    print("[Aimbot] MaxDistance:", aimbotMaxDistance)
+end
+
+function module.toggleDynamicSmoothing(state)
+    dynamicSmoothingEnabled = state and true or false
+    print("[Aimbot] DynamicSmoothing:", dynamicSmoothingEnabled)
 end
 
 function module.destroy()

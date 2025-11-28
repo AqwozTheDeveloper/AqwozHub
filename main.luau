@@ -43,7 +43,9 @@ local function loadModule(path, url)
             toggleKeyToggle = function() end,
             setToggleKey = function() end,
             setTargetPart = function() end,
-            setMaxAngle = function() end
+            setMaxAngle = function() end,
+            setMaxDistance = function() end,
+            toggleDynamicSmoothing = function() end
         }
     end
 end
@@ -186,6 +188,18 @@ CombatTab:CreateSlider({
    end,
 })
 
+CombatTab:CreateSlider({
+   Name = "Max Distance",
+   Range = {0, 1000},
+   Increment = 50,
+   Suffix = "studs",
+   CurrentValue = 0,
+   Flag = "MaxDistance",
+   Callback = function(Value)
+        aimbotScripts.setMaxDistance(Value)
+   end,
+})
+
 CombatTab:CreateSection("Aim Assist UI")
 
 CombatTab:CreateToggle({
@@ -203,6 +217,15 @@ CombatTab:CreateToggle({
    Flag = "FOVCircle",
    Callback = function(Value)
         aimbotScripts.toggleFOVCircle(Value)
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Dynamic Smoothing",
+   CurrentValue = false,
+   Flag = "DynamicSmoothing",
+   Callback = function(Value)
+        aimbotScripts.toggleDynamicSmoothing(Value)
    end,
 })
 
