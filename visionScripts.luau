@@ -1,85 +1,208 @@
--- visionScripts.luau (Safe & Crash-Free)
+-- visionScripts.luau - ESP Module (Debug Version)
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
-
-local LocalPlayer = Players.LocalPlayer
-local ESPFolder = nil
 
 local module = {}
 
+local espFolder = nil
 local espEnabled = false
-local espColor = Color3.fromRGB(255, 255, 255)
+local characterConnections = {}
+local espColor = Color3.fromRGB(0, 255, 100)
 
--- Initialize ESP folder safely
-local function initESP()
-    if ESPFolder then return end
-    ESPFolder = Instance.new("Folder")
-    ESPFolder.Name = "ESP"
-    ESPFolder.Parent = Workspace
-end
+print("[Vision] Module loaded")
 
--- Create ESP box for player
-local function createESP(player)
-    if not player.Character then return end
-    local head = player.Character:FindFirstChild("Head")
-    if not head then return end
+-- ESP oluşturma fonksiyonu
+local function createESP(character)
+    print("[Vision] Creating ESP for:", character.Name)
 
-    local espBox = Instance.new("BoxHandleAdornment")
-    espBox.Adornee = head
-    espBox.Size = Vector3.new(2, 2, 2)
-    espBox.Color3 = espColor
-    espBox.Transparency = 0.5
-    espBox.AlwaysOnTop = true
-    espBox.ZIndex = 1
-    espBox.Parent = ESPFolder
-    return espBox
-end
-
--- Update all ESPs
-local function updateESP()
-    if not espEnabled then return end
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            -- Check if ESP already exists
-            local existing = ESPFolder:FindFirstChild(player.Name)
-            if not existing then
-                local esp = createESP(player)
-                if esp then
-                    esp.Name = player.Name
-                end
-            end
-        end
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then
+        print("[Vision] HumanoidRootPart not found!")
+        return
     end
-end
 
--- Public API
-function module.init()
-    print("[Vision] Initializing...")
-    initESP()
-    print("[Vision] Module initialized successfully!")
-end
+    if not espEnabled then
+        print("[Vision] ESP is disabled")
+        return
+    end
 
-function module.toggleESP(state)
-    espEnabled = state
-    print("[Vision] ESP:", state and "Enabled" or "Disabled")
-
-    if state then
-        RunService.RenderStepped:Connect(updateESP)
-    else
-        -- Clean up ESP
-        if ESPFolder then
-            for _, child in ipairs(ESPFolder:GetChildren()) do
+    -- Eski ESP'leri temizle
+    if espFolder then
+        for _, child in pairs(espFolder:GetChildren()) do
+            if child.Name:find(character.Name) then
                 child:Destroy()
             end
         end
     end
+
+    local oldHighlight = character:FindFirstChild("ESPHighlight")
+    if oldHighlight then
+        oldHighlight:Destroy()
+    end
+
+    -- BoxHandleAdornment
+    local box = Instance.new("BoxHandleAdornment")
+    box.Name = character.Name .. "_Box"
+    box.Size = Vector3.new(4, 6, 4)
+    box.Color3 = espColor
+    box.Transparency = 0.5
+    box.AlwaysOnTop = true
+    box.Adornee = hrp
+    box.ZIndex = 10
+    box.Visible = true
+    box.Parent = espFolder
+
+    print("[Vision] Box created for:", character.Name)
+
+    -- Highlight ekle
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESPHighlight"
+    highlight.Adornee = character
+    highlight.FillColor = espColor
+    highlight.OutlineColor = espColor
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+    highlight.Parent = character
+
+    print("[Vision] Highlight created for:", character.Name)
+end
+
+-- Oyuncu için ESP setup
+local function setupPlayer(plr)
+    if plr == Players.LocalPlayer then return end
+
+    print("[Vision] Setting up player:", plr.Name)
+
+    -- Character spawn olduğunda ESP oluştur
+    characterConnections[plr] = plr.CharacterAdded:Connect(function(char)
+        print("[Vision] Character added for:", plr.Name)
+        task.wait(0.5)
+        if espEnabled then
+            createESP(char)
+        end
+    end)
+
+    -- Eğer karakter zaten varsa
+    if plr.Character then
+        print("[Vision] Character already exists for:", plr.Name)
+        if espEnabled then
+            task.spawn(function()
+                createESP(plr.Character)
+            end)
+        end
+    end
+end
+
+-- MODULE API
+function module.init()
+    print("[Vision] Initializing module...")
+
+    espFolder = Instance.new("Folder")
+    espFolder.Name = "VisionESP"
+    espFolder.Parent = workspace
+
+    print("[Vision] ESP Folder created in workspace")
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        setupPlayer(plr)
+    end
+
+    Players.PlayerAdded:Connect(function(plr)
+        print("[Vision] New player joined:", plr.Name)
+        setupPlayer(plr)
+    end)
+
+    Players.PlayerRemoving:Connect(function(plr)
+        print("[Vision] Player leaving:", plr.Name)
+        if characterConnections[plr] then
+            characterConnections[plr]:Disconnect()
+            characterConnections[plr] = nil
+        end
+    end)
+
+    print("[Vision] Module initialized successfully!")
+end
+
+function module.toggleESP(state)
+    print("[Vision] Toggle ESP:", state)
+    espEnabled = state
+
+    if not state then
+        print("[Vision] Disabling ESP, clearing all...")
+        -- Tüm ESP'leri temizle
+        if espFolder then
+            espFolder:ClearAllChildren()
+        end
+
+        -- Highlight'ları temizle
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr.Character then
+                local highlight = plr.Character:FindFirstChild("ESPHighlight")
+                if highlight then
+                    highlight:Destroy()
+                end
+            end
+        end
+        print("[Vision] ESP disabled and cleared")
+        return
+    end
+
+    -- ESP ON → mevcut oyuncular için oluştur
+    print("[Vision] Enabling ESP for all players...")
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= Players.LocalPlayer and plr.Character then
+            print("[Vision] Creating ESP for existing player:", plr.Name)
+            createESP(plr.Character)
+        end
+    end
+    print("[Vision] ESP enabled!")
+end
+
+function module.destroy()
+    print("[Vision] Destroying module...")
+    espEnabled = false
+    if espFolder then
+        espFolder:Destroy()
+        espFolder = nil
+    end
+
+    for plr, conn in pairs(characterConnections) do
+        conn:Disconnect()
+    end
+    characterConnections = {}
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr.Character then
+            local highlight = plr.Character:FindFirstChild("ESPHighlight")
+            if highlight then
+                highlight:Destroy()
+            end
+        end
+    end
+    print("[Vision] Module destroyed")
 end
 
 function module.setESPColor(color)
+    print("[Vision] Setting ESP color to:", color)
     espColor = color
-    print("[Vision] ESP color set to:", color)
+
+    if espFolder then
+        for _, child in ipairs(espFolder:GetChildren()) do
+            if child:IsA("BoxHandleAdornment") then
+                child.Color3 = color
+            end
+        end
+    end
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr.Character then
+            local highlight = plr.Character:FindFirstChild("ESPHighlight")
+            if highlight then
+                highlight.FillColor = color
+                highlight.OutlineColor = color
+            end
+        end
+    end
+    print("[Vision] ESP color updated")
 end
 
 return module

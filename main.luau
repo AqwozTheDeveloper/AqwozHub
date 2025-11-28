@@ -1,14 +1,20 @@
 -- main.luau - Aqwoz Hub
 local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Orion/main/source'))()
-OrionLib.Settings.UseFeatherIcons = false 
+
+-- Module Loader
+local function loadModule(path, url)
+    if isfile and isfile(path) then
+        return loadstring(readfile(path))()
+    end
+    return loadstring(game:HttpGet(url))()
+end
+
 -- Vision module
-local visionURL = "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/visionScripts.luau"
-local visionScripts = loadstring(game:HttpGet(visionURL))()
+local visionScripts = loadModule("AqwozHub/visionScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/visionScripts.luau")
 visionScripts.init()
 
 -- Aimbot module
-local aimbotURL = "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/aimbotScripts.luau"
-local aimbotScripts = loadstring(game:HttpGet(aimbotURL))()
+local aimbotScripts = loadModule("AqwozHub/aimbotScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/aimbotScripts.luau")
 aimbotScripts.init()
 
 -- Window
@@ -63,7 +69,7 @@ local AimSection = AimSectionTab:AddSection({
 })
 
 AimSection:AddToggle({
-    Name = "Enable SilentAim",
+    Name = "Enable Aimbot",
     Default = false,
     Callback = function(Value)
         aimbotScripts.toggleAimbot(Value)
@@ -71,7 +77,7 @@ AimSection:AddToggle({
 })
 
 AimSection:AddSlider({
-    Name = "SilentAim FOV",
+    Name = "Aimbot FOV",
     Min = 50,
     Max = 500,
     Default = 200,
@@ -84,5 +90,3 @@ AimSection:AddSlider({
 
 -- Initialize
 OrionLib:Init()
-
-
