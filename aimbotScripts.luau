@@ -430,8 +430,13 @@ local function updatePointerDot()
         pointerFrame.Visible = true
     end
     local pos
-    if currentTarget and currentTarget.Character then
-        local part = getTargetPart(currentTarget.Character)
+    local targetPlayer = currentTarget
+    if not targetPlayer then
+        targetPlayer = getClosestPlayer()
+    end
+    if targetPlayer and targetPlayer.Character then
+        local head = targetPlayer.Character:FindFirstChild("Head")
+        local part = head or getTargetPart(targetPlayer.Character)
         if part then
             local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
             if onScreen then
@@ -474,6 +479,7 @@ function module.togglePointerLock(state)
         if ensureFOVGui() then
             pointerFrame.Visible = true
             UserInputService.MouseIconEnabled = false
+            module.setTargetPart("Head")
             updatePointerDot()
             if not pointerConnection then
                 pointerConnection = RunService.RenderStepped:Connect(updatePointerDot)
