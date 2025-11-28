@@ -45,7 +45,8 @@ local function loadModule(path, url)
             setTargetPart = function() end,
             setMaxAngle = function() end,
             setMaxDistance = function() end,
-            toggleDynamicSmoothing = function() end
+            toggleDynamicSmoothing = function() end,
+            togglePointerLock = function() end
         }
     end
 end
@@ -226,6 +227,15 @@ CombatTab:CreateToggle({
    Flag = "DynamicSmoothing",
    Callback = function(Value)
         aimbotScripts.toggleDynamicSmoothing(Value)
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Lock Cursor to Target",
+   CurrentValue = false,
+   Flag = "PointerLock",
+   Callback = function(Value)
+        aimbotScripts.togglePointerLock(Value)
    end,
 })
 

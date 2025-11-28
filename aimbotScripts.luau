@@ -29,6 +29,9 @@ local fovConnection = nil
 local fovStroke = nil
 local fovDefaultColor = Color3.fromRGB(255, 255, 255)
 local fovLockedColor = Color3.fromRGB(0, 255, 100)
+local pointerLockEnabled = false
+local pointerFrame = nil
+local pointerConnection = nil
 
 local targetPartName = "Head"
 local maxAngleDeg = 180
@@ -275,6 +278,18 @@ local function ensureFOVGui()
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(1, 0)
     corner.Parent = fovFrame
+    pointerFrame = Instance.new("Frame")
+    pointerFrame.Name = "PointerDot"
+    pointerFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    pointerFrame.BackgroundTransparency = 0
+    pointerFrame.Size = UDim2.fromOffset(6, 6)
+    pointerFrame.Position = UDim2.fromOffset(0, 0)
+    pointerFrame.ZIndex = 101
+    pointerFrame.Visible = false
+    pointerFrame.Parent = fovGui
+    local pcorner = Instance.new("UICorner")
+    pcorner.CornerRadius = UDim.new(1, 0)
+    pcorner.Parent = pointerFrame
     return true
 end
 
@@ -291,6 +306,26 @@ local function updateFOVCircle()
             fovStroke.Color = fovDefaultColor
         end
     end
+end
+
+local function updatePointerDot()
+    if not pointerLockEnabled then return end
+    if not pointerFrame or not fovGui then return end
+    local pos
+    if currentTarget and currentTarget.Character then
+        local part = getTargetPart(currentTarget.Character)
+        if part then
+            local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+            if onScreen then
+                pos = Vector2.new(screenPos.X, screenPos.Y)
+            end
+        end
+    end
+    if not pos then
+        local mouse = UserInputService:GetMouseLocation()
+        pos = Vector2.new(mouse.X, mouse.Y)
+    end
+    pointerFrame.Position = UDim2.fromOffset(pos.X - 3, pos.Y - 3)
 end
 
 function module.toggleFOVCircle(state)
@@ -313,6 +348,30 @@ function module.toggleFOVCircle(state)
             fovFrame.Visible = false
         end
     end
+end
+
+function module.togglePointerLock(state)
+    pointerLockEnabled = state and true or false
+    if pointerLockEnabled then
+        if ensureFOVGui() then
+            pointerFrame.Visible = true
+            UserInputService.MouseIconEnabled = false
+            updatePointerDot()
+            if not pointerConnection then
+                pointerConnection = RunService.RenderStepped:Connect(updatePointerDot)
+            end
+        end
+    else
+        if pointerConnection then
+            pointerConnection:Disconnect()
+            pointerConnection = nil
+        end
+        if pointerFrame then
+            pointerFrame.Visible = false
+        end
+        UserInputService.MouseIconEnabled = true
+    end
+    print("[Aimbot] PointerLock:", pointerLockEnabled)
 end
 
 function module.setMaxDistance(value)
@@ -345,10 +404,15 @@ function module.destroy()
         fovConnection:Disconnect()
         fovConnection = nil
     end
+    if pointerConnection then
+        pointerConnection:Disconnect()
+        pointerConnection = nil
+    end
     if fovGui then
         fovGui:Destroy()
         fovGui = nil
         fovFrame = nil
+        pointerFrame = nil
     end
 end
 
