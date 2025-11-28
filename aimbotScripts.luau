@@ -10,7 +10,7 @@ local module = {}
 local aimbotEnabled = false
 local aimbotFOV = 200
 local aimbotConnection = nil
-local aimbotSmoothing = 0.5
+local aimbotSmoothing = 0.7 -- Daha agresif başlangıç değeri
 local teamCheckEnabled = false
 local wallCheckEnabled = false
 local silentAimEnabled = false
@@ -154,11 +154,20 @@ local function aimbotLoop()
         if head then
             local cameraPos = Camera.CFrame.Position
             local headPos = head.Position
+            
+            -- Hedefe doğru CFrame oluştur (kamera pozisyonunu koru, sadece yönü değiştir)
             local targetCFrame = CFrame.new(cameraPos, headPos)
             
-            -- Camera'yı hedefe yönlendir
+            -- Camera'yı hedefe yönlendir - daha agresif lock
             pcall(function()
-                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, aimbotSmoothing)
+                if aimbotSmoothing >= 0.8 then
+                    -- Çok yüksek smoothing = neredeyse direkt lock
+                    Camera.CFrame = targetCFrame
+                else
+                    -- Smooth lock - daha agresif smoothing
+                    local lerpValue = math.max(aimbotSmoothing, 0.3)
+                    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, lerpValue)
+                end
             end)
         end
     end
@@ -262,7 +271,8 @@ function module.toggleAimbot(state)
         if silentAimEnabled then
             setupSilentAim()
         else
-            aimbotConnection = RunService.Heartbeat:Connect(aimbotLoop)
+            -- RenderStepped kullan (daha hızlı ve responsive)
+            aimbotConnection = RunService.RenderStepped:Connect(aimbotLoop)
             print("[Aimbot] Aimbot loop started")
         end
     else
@@ -296,7 +306,7 @@ function module.toggleSilentAim(state)
                 aimbotConnection:Disconnect()
             end
             Camera = workspace.CurrentCamera
-            aimbotConnection = RunService.Heartbeat:Connect(aimbotLoop)
+            aimbotConnection = RunService.RenderStepped:Connect(aimbotLoop)
             print("[Aimbot] Switched to normal aimbot")
         end
     end
