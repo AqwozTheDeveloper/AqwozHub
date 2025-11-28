@@ -99,15 +99,6 @@ CombatTab:CreateToggle({
 })
 
 CombatTab:CreateToggle({
-   Name = "Silent Aim",
-   CurrentValue = false,
-   Flag = "SilentAimToggle",
-   Callback = function(Value)
-        aimbotScripts.toggleSilentAim(Value)
-   end,
-})
-
-CombatTab:CreateToggle({
    Name = "Team Check",
    CurrentValue = false,
    Flag = "TeamCheck",
@@ -137,9 +128,6 @@ CombatTab:CreateSlider({
    end,
 })
 
--- Başlangıç smoothing değerini ayarla
-aimbotScripts.setSmoothing(5)
-
 CombatTab:CreateSlider({
    Name = "Aimbot FOV",
    Range = {10, 500},
@@ -149,25 +137,5 @@ CombatTab:CreateSlider({
    Flag = "FOV",
    Callback = function(Value)
         aimbotScripts.setFOV(Value)
-   end,
-})
-
-CombatTab:CreateSection("FOV Circle Settings")
-
-CombatTab:CreateToggle({
-   Name = "Show FOV Circle",
-   CurrentValue = false,
-   Flag = "FOVCircleToggle",
-   Callback = function(Value)
-        aimbotScripts.toggleFOVCircle(Value)
-   end,
-})
-
-CombatTab:CreateColorPicker({
-   Name = "FOV Circle Color",
-   Color = Color3.fromRGB(255, 255, 255),
-   Flag = "FOVCircleColor",
-   Callback = function(Value)
-        aimbotScripts.setFOVCircleColor(Value)
    end,
 })
