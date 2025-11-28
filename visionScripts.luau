@@ -1,5 +1,6 @@
 -- visionScripts.luau - ESP Module (Debug Version)
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 local module = {}
 
@@ -12,7 +13,7 @@ print("[Vision] Module loaded")
 
 -- ESP oluşturma fonksiyonu
 local function createESP(character)
-    print("[Vision] Creating ESP for:", character.Name)
+    print("[Vision] Creating ESP for:", character.Parent.Name)
 
     local hrp = character:FindFirstChild("HumanoidRootPart")
     if not hrp then
@@ -28,7 +29,7 @@ local function createESP(character)
     -- Eski ESP'leri temizle
     if espFolder then
         for _, child in pairs(espFolder:GetChildren()) do
-            if child.Name:find(character.Name) then
+            if child.Name:find(character.Parent.Name) then
                 child:Destroy()
             end
         end
@@ -41,7 +42,7 @@ local function createESP(character)
 
     -- BoxHandleAdornment
     local box = Instance.new("BoxHandleAdornment")
-    box.Name = character.Name .. "_Box"
+    box.Name = character.Parent.Name .. "_Box"
     box.Size = Vector3.new(4, 6, 4)
     box.Color3 = espColor
     box.Transparency = 0.5
@@ -51,7 +52,7 @@ local function createESP(character)
     box.Visible = true
     box.Parent = espFolder
 
-    print("[Vision] Box created for:", character.Name)
+    print("[Vision] Box created for:", character.Parent.Name)
 
     -- Highlight ekle
     local highlight = Instance.new("Highlight")
@@ -63,7 +64,7 @@ local function createESP(character)
     highlight.OutlineTransparency = 0
     highlight.Parent = character
 
-    print("[Vision] Highlight created for:", character.Name)
+    print("[Vision] Highlight created for:", character.Parent.Name)
 end
 
 -- Oyuncu için ESP setup
