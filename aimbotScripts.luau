@@ -112,13 +112,11 @@ function module.toggleAimbot(state)
     print("[Aimbot] Toggled:", state)
 
     if state then
-        if aimbotConnection then aimbotConnection:Disconnect() end
-        aimbotConnection = RunService.RenderStepped:Connect(aimbotLoop)
+        RunService:BindToRenderStep("AqwozAimbot", Enum.RenderPriority.Camera.Value + 1, aimbotLoop)
     else
-        if aimbotConnection then
-            aimbotConnection:Disconnect()
-            aimbotConnection = nil
-        end
+        pcall(function()
+            RunService:UnbindFromRenderStep("AqwozAimbot")
+        end)
     end
 end
 
