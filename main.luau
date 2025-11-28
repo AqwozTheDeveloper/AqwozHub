@@ -576,8 +576,6 @@ local APPLY = {
     WallCheck = function(v) aimbotScripts.toggleWallCheck(v) end,
     Smoothing = function(v) aimbotScripts.setSmoothing(v) end,
     FOV = function(v) aimbotScripts.setFOV(v) end,
-    TargetHead = function(v) if v then aimbotScripts.setTargetPart("Head") end end,
-    TargetUpperTorso = function(v) if v then aimbotScripts.setTargetPart("UpperTorso") end end,
     MaxAngle = function(v) aimbotScripts.setMaxAngle(v) end,
     LeadEnable = function(v) aimbotScripts.toggleLead(v) end,
     ProjectileSpeed = function(v) aimbotScripts.setProjectileSpeed(v) end,
@@ -610,6 +608,17 @@ local function applyFlags(flags)
         if fn then
             fn(v)
         end
+    end
+    local wantHead = flags and flags.TargetHead == true
+    local wantTorso = flags and flags.TargetUpperTorso == true
+    local part = nil
+    if wantHead then
+        part = "Head"
+    elseif wantTorso then
+        part = "UpperTorso"
+    end
+    if part then
+        aimbotScripts.setTargetPart(part)
     end
 end
 
