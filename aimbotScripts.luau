@@ -14,7 +14,8 @@ local aimbotSmoothing = 0.1
 local dynamicSmoothingEnabled = false
 local aimbotMaxDistance = 0
 local currentTarget = nil
-local teamCheckEnabled = false
+local teamCheckEnabled = true
+local friendExcludeEnabled = false
 local wallCheckEnabled = false
 local aimHoldEnabled = false
 local aimHoldActive = false
@@ -32,6 +33,25 @@ local fovLockedColor = Color3.fromRGB(0, 255, 100)
 local pointerLockEnabled = false
 local pointerFrame = nil
 local pointerConnection = nil
+local pointerADSOnlyEnabled = false
+local debugEnabled = false
+local debugGui = nil
+local debugLabel = nil
+local debugConnection = nil
+local leadEnabled = false
+local projectileSpeed = 0
+local stickyLockMs = 200
+local lastSeenTime = 0
+local snapAngleDeg = 6
+local maxTurnRateDeg = 0
+local aimCurveMode = "Linear"
+local adsOnlyLockEnabled = false
+local priorityWeightedEnabled = false
+local angleWeight = 0.5
+local pixelWeight = 1.0
+local distanceWeight = 0.2
+local blacklistEnabled = false
+local blacklist = {}
 
 local targetPartName = "Head"
 local maxAngleDeg = 180
@@ -69,12 +89,34 @@ local function getClosestPlayer()
         return result.Instance and result.Instance:IsDescendantOf(targetChar)
     end
 
+    local function isTeammate(player)
+        local lpTeam = LocalPlayer.Team
+        local pTeam = player.Team
+        if lpTeam and pTeam then
+            if pTeam == lpTeam then return true end
+        end
+        local lpColor = LocalPlayer.TeamColor
+        local pColor = player.TeamColor
+        if lpColor and pColor then
+            if lpColor == pColor then return true end
+        end
+        return false
+    end
+
+    local function isFriend(player)
+        local ok, res = pcall(function()
+            return LocalPlayer:IsFriendsWith(player.UserId)
+        end)
+        return ok and res == true
+    end
+
     local function isValidPlayer(player)
         if player == LocalPlayer or not player.Character then return false end
         local humanoid = player.Character:FindFirstChild("Humanoid")
         local part = getTargetPart(player.Character)
         if not humanoid or humanoid.Health <= 0 or not part then return false end
-        if teamCheckEnabled and player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team then return false end
+        if teamCheckEnabled and isTeammate(player) then return false end
+        if friendExcludeEnabled and isFriend(player) then return false end
         local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
         if not onScreen or not isVisible(player.Character, part) then return false end
         local distancePixels = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
@@ -86,33 +128,77 @@ local function getClosestPlayer()
         return true
     end
 
-    if currentTarget and isValidPlayer(currentTarget) then
-        return currentTarget
+    local function isSeen(player)
+        if not player or not player.Character then return false end
+        local part = getTargetPart(player.Character)
+        if not part then return false end
+        local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+        if not onScreen then return false end
+        return isVisible(player.Character, part)
     end
 
+    if currentTarget then
+        if teamCheckEnabled and isTeammate(currentTarget) then
+            currentTarget = nil
+        elseif friendExcludeEnabled and isFriend(currentTarget) then
+            currentTarget = nil
+        end
+        if isSeen(currentTarget) then
+            lastSeenTime = tick()
+            return currentTarget
+        elseif stickyLockMs > 0 and (tick() - lastSeenTime) * 1000 < stickyLockMs then
+            return currentTarget
+        end
+    end
+
+    local bestScore = math.huge
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local humanoid = player.Character:FindFirstChild("Humanoid")
             local part = getTargetPart(player.Character)
 
             if humanoid and humanoid.Health > 0 and part then
-                if teamCheckEnabled and player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team then
+                if teamCheckEnabled and isTeammate(player) then
                     
                 else
+                    if friendExcludeEnabled and isFriend(player) then
+                        
+                    else
                     local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
 
                     if onScreen and isVisible(player.Character, part) then
-                        local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                        if aimbotMaxDistance and aimbotMaxDistance > 0 then
-                            local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
-                            if worldDist > aimbotMaxDistance then
-                                distance = math.huge
+                        if blacklistEnabled and blacklist[player.Name] then
+                            
+                        else
+                            if priorityWeightedEnabled then
+                                local px = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                                local wd = (part.Position - Camera.CFrame.Position).Magnitude
+                                if aimbotMaxDistance and aimbotMaxDistance > 0 and wd > aimbotMaxDistance then
+                                    px = math.huge
+                                    wd = math.huge
+                                end
+                                local toTarget = (part.Position - Camera.CFrame.Position).Unit
+                                local ang = math.deg(math.acos(math.clamp(Camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
+                                local score = ang * angleWeight + px * pixelWeight + wd * distanceWeight
+                                if score < bestScore then
+                                    bestScore = score
+                                    closestPlayer = player
+                                end
+                            else
+                                local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                                if aimbotMaxDistance and aimbotMaxDistance > 0 then
+                                    local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
+                                    if worldDist > aimbotMaxDistance then
+                                        distance = math.huge
+                                    end
+                                end
+                                if distance < shortestDistance then
+                                    closestPlayer = player
+                                    shortestDistance = distance
+                                end
                             end
                         end
-                        if distance < shortestDistance then
-                            closestPlayer = player
-                            shortestDistance = distance
-                        end
+                    end
                     end
                 end
             end
@@ -126,6 +212,7 @@ end
 local function aimbotLoop()
     if not aimbotEnabled then return end
     if aimHoldEnabled and not aimHoldActive then return end
+    if adsOnlyLockEnabled and not aimHoldActive then return end
 
     local target = getClosestPlayer()
 
@@ -133,18 +220,43 @@ local function aimbotLoop()
         local part = getTargetPart(target.Character)
 
         if part then
-            -- Kamerayı hedefin kafasına yönlendir
-            local toTarget = (part.Position - Camera.CFrame.Position).Unit
+            local pos = part.Position
+            if leadEnabled and projectileSpeed > 0 and _G and _G.AqwozAimUtils then
+                pos = _G.AqwozAimUtils.leadPosition(part, Camera.CFrame.Position, projectileSpeed)
+            end
+            local toTarget = (pos - Camera.CFrame.Position).Unit
             local angle = math.deg(math.acos(math.clamp(Camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
             if angle > maxAngleDeg then return end
-            local targetCFrame = CFrame.new(Camera.CFrame.Position, part.Position)
-            local factor = aimbotSmoothing
-            if dynamicSmoothingEnabled and maxAngleDeg > 0 then
-                local ratio = math.clamp(angle / maxAngleDeg, 0.2, 1)
-                factor = math.clamp(aimbotSmoothing * ratio, 0.01, 1)
+            if angle <= snapAngleDeg then
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, pos)
+            else
+                local factor = aimbotSmoothing
+                if dynamicSmoothingEnabled and maxAngleDeg > 0 then
+                    local ratio = math.clamp(angle / maxAngleDeg, 0.2, 1)
+                    factor = math.clamp(aimbotSmoothing * ratio, 0.01, 1)
+                end
+                if maxTurnRateDeg and maxTurnRateDeg > 0 and angle > 0 then
+                    factor = math.min(factor, maxTurnRateDeg / angle)
+                end
+                local targetCFrame = CFrame.new(Camera.CFrame.Position, pos)
+                local t = math.clamp(factor, 0, 1)
+                if aimCurveMode == "EaseIn" then
+                    t = t * t
+                elseif aimCurveMode == "EaseOut" then
+                    local u = 1 - t
+                    t = 1 - (u * u)
+                elseif aimCurveMode == "EaseInOut" then
+                    if t < 0.5 then
+                        t = 2 * t * t
+                    else
+                        local u = 1 - t
+                        t = 1 - 2 * u * u
+                    end
+                end
+                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, t)
             end
-            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, factor)
             currentTarget = target
+            lastSeenTime = tick()
         end
     else
         currentTarget = nil
@@ -311,6 +423,12 @@ end
 local function updatePointerDot()
     if not pointerLockEnabled then return end
     if not pointerFrame or not fovGui then return end
+    if pointerADSOnlyEnabled and not aimHoldActive then
+        pointerFrame.Visible = false
+        return
+    else
+        pointerFrame.Visible = true
+    end
     local pos
     if currentTarget and currentTarget.Character then
         local part = getTargetPart(currentTarget.Character)
@@ -374,6 +492,198 @@ function module.togglePointerLock(state)
     print("[Aimbot] PointerLock:", pointerLockEnabled)
 end
 
+function module.togglePointerADSOnly(state)
+    pointerADSOnlyEnabled = state and true or false
+    print("[Aimbot] PointerADSOnly:", pointerADSOnlyEnabled)
+end
+
+function module.toggleLead(state)
+    leadEnabled = state and true or false
+    print("[Aimbot] Lead:", leadEnabled)
+end
+
+function module.setProjectileSpeed(value)
+    local v = tonumber(value) or 0
+    projectileSpeed = math.max(0, v)
+    print("[Aimbot] ProjectileSpeed:", projectileSpeed)
+end
+
+function module.setStickyLockMs(value)
+    local v = tonumber(value) or stickyLockMs
+    stickyLockMs = math.clamp(v, 0, 2000)
+    print("[Aimbot] StickyLockMs:", stickyLockMs)
+end
+
+function module.setSnapAngle(deg)
+    local v = tonumber(deg) or snapAngleDeg
+    snapAngleDeg = math.clamp(v, 0, 30)
+    print("[Aimbot] SnapAngle:", snapAngleDeg)
+end
+
+function module.setMaxTurnRateDeg(deg)
+    local v = tonumber(deg) or maxTurnRateDeg
+    maxTurnRateDeg = math.clamp(v, 0, 90)
+    print("[Aimbot] MaxTurnRateDeg:", maxTurnRateDeg)
+end
+
+function module.setAimCurve(mode)
+    local allowed = { Linear = true, EaseIn = true, EaseOut = true, EaseInOut = true }
+    if type(mode) == "string" and allowed[mode] then
+        aimCurveMode = mode
+    end
+    print("[Aimbot] AimCurve:", aimCurveMode)
+end
+
+function module.toggleADSOnlyLock(state)
+    adsOnlyLockEnabled = state and true or false
+    print("[Aimbot] ADSOnlyLock:", adsOnlyLockEnabled)
+end
+
+function module.toggleFriendExclude(state)
+    friendExcludeEnabled = state and true or false
+    print("[Aimbot] FriendExclude:", friendExcludeEnabled)
+end
+
+function module.togglePriorityWeighted(state)
+    priorityWeightedEnabled = state and true or false
+    print("[Aimbot] WeightedPriority:", priorityWeightedEnabled)
+end
+
+function module.setAngleWeight(value)
+    local v = tonumber(value) or angleWeight
+    angleWeight = math.clamp(v, 0, 2)
+    print("[Aimbot] AngleWeight:", angleWeight)
+end
+
+function module.setPixelWeight(value)
+    local v = tonumber(value) or pixelWeight
+    pixelWeight = math.clamp(v, 0, 2)
+    print("[Aimbot] PixelWeight:", pixelWeight)
+end
+
+function module.setDistanceWeight(value)
+    local v = tonumber(value) or distanceWeight
+    distanceWeight = math.clamp(v, 0, 2)
+    print("[Aimbot] DistanceWeight:", distanceWeight)
+end
+
+function module.toggleBlacklist(state)
+    blacklistEnabled = state and true or false
+    print("[Aimbot] BlacklistEnabled:", blacklistEnabled)
+end
+
+function module.blacklistCurrentTarget()
+    if currentTarget and currentTarget.Name then
+        blacklist[currentTarget.Name] = true
+        print("[Aimbot] Blacklisted:", currentTarget.Name)
+    end
+end
+
+function module.blacklistClear()
+    blacklist = {}
+    print("[Aimbot] Blacklist cleared")
+end
+
+function module.setFOVCircleColor(name)
+    local map = {
+        White = Color3.fromRGB(255, 255, 255),
+        Green = Color3.fromRGB(0, 255, 100),
+        Red = Color3.fromRGB(255, 60, 60),
+        Blue = Color3.fromRGB(80, 160, 255)
+    }
+    local c = map[name] or fovDefaultColor
+    fovDefaultColor = c
+    if fovStroke then fovStroke.Color = c end
+end
+
+function module.setFOVStrokeThickness(value)
+    local v = tonumber(value) or 2
+    v = math.clamp(v, 1, 6)
+    if fovStroke then fovStroke.Thickness = v end
+end
+
+function module.setPointerSize(value)
+    local v = tonumber(value) or 6
+    v = math.clamp(v, 2, 24)
+    if pointerFrame then pointerFrame.Size = UDim2.fromOffset(v, v) end
+end
+
+function module.setPointerColor(name)
+    local map = {
+        White = Color3.fromRGB(255, 255, 255),
+        Green = Color3.fromRGB(0, 255, 100),
+        Red = Color3.fromRGB(255, 60, 60),
+        Blue = Color3.fromRGB(80, 160, 255)
+    }
+    local c = map[name] or Color3.fromRGB(255, 255, 255)
+    if pointerFrame then pointerFrame.BackgroundColor3 = c end
+end
+
+local function ensureDebugGui()
+    if debugGui and debugLabel then return true end
+    local pg = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui")
+    if not pg then return false end
+    debugGui = Instance.new("ScreenGui")
+    debugGui.Name = "AqwozHubDebug"
+    debugGui.IgnoreGuiInset = true
+    debugGui.ResetOnSpawn = false
+    debugGui.Parent = pg
+    debugLabel = Instance.new("TextLabel")
+    debugLabel.Name = "DebugLabel"
+    debugLabel.BackgroundTransparency = 0.4
+    debugLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    debugLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    debugLabel.Size = UDim2.fromOffset(220, 70)
+    debugLabel.Position = UDim2.fromOffset(20, 20)
+    debugLabel.TextScaled = false
+    debugLabel.Font = Enum.Font.Code
+    debugLabel.Text = ""
+    debugLabel.ZIndex = 200
+    debugLabel.Parent = debugGui
+    return true
+end
+
+local function updateDebugOverlay()
+    if not debugEnabled then return end
+    if not ensureDebugGui() then return end
+    local info = ""
+    if currentTarget and currentTarget.Character then
+        local part = getTargetPart(currentTarget.Character)
+        if part then
+            local toTarget = (part.Position - Camera.CFrame.Position).Unit
+            local angle = math.deg(math.acos(math.clamp(Camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
+            local dist = (part.Position - Camera.CFrame.Position).Magnitude
+            info = string.format("Target: %s\nAngle: %.1f\nDist: %.1f", currentTarget.Name, angle, dist)
+        end
+    else
+        info = "No target"
+    end
+    debugLabel.Text = info
+end
+
+function module.toggleDebug(state)
+    debugEnabled = state and true or false
+    if debugEnabled then
+        if ensureDebugGui() then
+            updateDebugOverlay()
+            if not debugConnection then
+                debugConnection = RunService.RenderStepped:Connect(updateDebugOverlay)
+            end
+        end
+    else
+        if debugConnection then
+            debugConnection:Disconnect()
+            debugConnection = nil
+        end
+        if debugGui then
+            debugGui:Destroy()
+            debugGui = nil
+            debugLabel = nil
+        end
+    end
+    print("[Aimbot] Debug:", debugEnabled)
+end
+
 function module.setMaxDistance(value)
     local v = tonumber(value) or 0
     aimbotMaxDistance = math.max(0, v)
@@ -407,6 +717,15 @@ function module.destroy()
     if pointerConnection then
         pointerConnection:Disconnect()
         pointerConnection = nil
+    end
+    if debugConnection then
+        debugConnection:Disconnect()
+        debugConnection = nil
+    end
+    if debugGui then
+        debugGui:Destroy()
+        debugGui = nil
+        debugLabel = nil
     end
     if fovGui then
         fovGui:Destroy()
