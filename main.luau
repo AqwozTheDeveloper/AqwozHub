@@ -137,6 +137,9 @@ CombatTab:CreateSlider({
    end,
 })
 
+-- Başlangıç smoothing değerini ayarla
+aimbotScripts.setSmoothing(5)
+
 CombatTab:CreateSlider({
    Name = "Aimbot FOV",
    Range = {10, 500},

@@ -10,12 +10,25 @@ local module = {}
 local aimbotEnabled = false
 local aimbotFOV = 200
 local aimbotConnection = nil
-local aimbotSmoothing = 0.1 -- Daha smooth aim için
+local aimbotSmoothing = 0.25 -- Daha smooth aim için (başlangıç değeri)
 local teamCheckEnabled = false
 local wallCheckEnabled = false
 local silentAimEnabled = false
 local silentAimConnection = nil
-local mouse = LocalPlayer:GetMouse()
+
+-- Mouse objesini güvenli şekilde al
+local mouse = nil
+local function getMouse()
+    if not mouse then
+        local success, result = pcall(function()
+            return LocalPlayer:GetMouse()
+        end)
+        if success then
+            mouse = result
+        end
+    end
+    return mouse
+end
 
 -- FOV Circle
 local fovCircle = nil
@@ -123,6 +136,11 @@ end
 -- Aimbot loop (Smooth) - Normal aimbot
 local function aimbotLoop()
     if not aimbotEnabled or silentAimEnabled then return end
+    
+    if not Camera then
+        Camera = workspace.CurrentCamera
+        if not Camera then return end
+    end
 
     local target = getClosestPlayer()
 
@@ -131,8 +149,18 @@ local function aimbotLoop()
 
         if head then
             -- Kamerayı hedefin kafasına yönlendir
-            local targetCFrame = CFrame.new(Camera.CFrame.Position, head.Position)
-            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, aimbotSmoothing)
+            local cameraPos = Camera.CFrame.Position
+            local headPos = head.Position
+            local targetCFrame = CFrame.new(cameraPos, headPos)
+            
+            -- Smoothing uygula
+            local success, err = pcall(function()
+                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, aimbotSmoothing)
+            end)
+            
+            if not success then
+                warn("[Aimbot] Error in aimbot loop:", err)
+            end
         end
     end
 end
@@ -140,17 +168,29 @@ end
 -- Silent Aim - Mouse.Hit hook
 local originalMouseHit = nil
 local lastHitCFrame = nil
+local mouseMeta = nil
 
 local function setupSilentAim()
     if not silentAimEnabled or originalMouseHit then return end
     
+    -- Mouse objesini al
+    local mouseObj = getMouse()
+    if not mouseObj then
+        warn("[Aimbot] Failed to get mouse object")
+        return
+    end
+    
     -- Mouse objesini hook et
-    local success, mouseMeta = pcall(getrawmetatable, mouse)
-    if not success or not mouseMeta then 
+    local success, meta = pcall(function()
+        return getrawmetatable(mouseObj)
+    end)
+    
+    if not success or not meta then 
         warn("[Aimbot] Failed to get mouse metatable")
         return 
     end
     
+    mouseMeta = meta
     originalMouseHit = mouseMeta.__index
     
     mouseMeta.__index = newcclosure(function(self, key)
@@ -189,19 +229,29 @@ local function setupSilentAim()
 end
 
 local function removeSilentAim()
-    if originalMouseHit then
-        local success, mouseMeta = pcall(getrawmetatable, mouse)
-        if success and mouseMeta then
-            mouseMeta.__index = originalMouseHit
-        end
+    if originalMouseHit and mouseMeta then
+        mouseMeta.__index = originalMouseHit
         originalMouseHit = nil
         lastHitCFrame = nil
+        mouseMeta = nil
         print("[Aimbot] Silent Aim hook removed")
     end
 end
 
 function module.init()
     print("[Aimbot] Module initialized")
+    
+    -- Mouse'u başlat
+    task.spawn(function()
+        task.wait(1)
+        getMouse()
+        if mouse then
+            print("[Aimbot] Mouse object loaded")
+        else
+            warn("[Aimbot] Mouse object not found - Silent Aim may not work")
+        end
+    end)
+    
     createFOVCircle()
 end
 
@@ -240,6 +290,11 @@ function module.toggleSilentAim(state)
             aimbotConnection:Disconnect()
             aimbotConnection = nil
         end
+        -- Aimbot açık değilse uyar
+        if not aimbotEnabled then
+            warn("[Aimbot] Silent Aim requires Aimbot to be enabled!")
+            return
+        end
         setupSilentAim()
     else
         -- Silent aim kapalı - normal aimbot'a geç
@@ -262,8 +317,8 @@ function module.setFOV(value)
 end
 
 function module.setSmoothing(value)
-    -- Slider 1-10 arası değer gönderiyor, 0.01-0.1 arasına çevir
-    aimbotSmoothing = value / 100
+    -- Slider 1-10 arası değer gönderiyor, 0.05-0.5 arasına çevir (daha iyi çalışması için)
+    aimbotSmoothing = math.clamp(value / 20, 0.05, 0.5)
     print("[Aimbot] Smoothing set to:", aimbotSmoothing)
 end
 
