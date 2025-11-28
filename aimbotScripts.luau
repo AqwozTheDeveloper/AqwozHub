@@ -208,6 +208,62 @@ local function getClosestPlayer()
     return closestPlayer
 end
 
+local function getClosestOnScreenToCenter()
+    local center = Vector2.new(Camera.ViewportSize.X * 0.5, Camera.ViewportSize.Y * 0.5)
+    local best = nil
+    local bestDist = math.huge
+
+    local function isVisible(targetChar, targetPart)
+        if not wallCheckEnabled then return true end
+        local origin = Camera.CFrame.Position
+        local direction = (targetPart.Position - origin)
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances = {LocalPlayer.Character}
+        local result = workspace:Raycast(origin, direction, params)
+        if not result then return true end
+        return result.Instance and result.Instance:IsDescendantOf(targetChar)
+    end
+
+    local function isTeammate(player)
+        local lpTeam = LocalPlayer.Team
+        local pTeam = player.Team
+        if lpTeam and pTeam and pTeam == lpTeam then return true end
+        local lpColor = LocalPlayer.TeamColor
+        local pColor = player.TeamColor
+        if lpColor and pColor and lpColor == pColor then return true end
+        return false
+    end
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            if teamCheckEnabled and isTeammate(player) then
+            else
+                local head = player.Character:FindFirstChild("Head")
+                local part = head or getTargetPart(player.Character)
+                if part then
+                    local humanoid = player.Character:FindFirstChild("Humanoid")
+                    if humanoid and humanoid.Health > 0 then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                        if onScreen and isVisible(player.Character, part) then
+                            local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
+                            if aimbotMaxDistance and aimbotMaxDistance > 0 and worldDist > aimbotMaxDistance then
+                            else
+                                local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                                if dist < bestDist then
+                                    bestDist = dist
+                                    best = player
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
 -- Aimbot loop (Smooth)
 local function aimbotLoop()
     if not aimbotEnabled then return end
@@ -430,10 +486,7 @@ local function updatePointerDot()
         pointerFrame.Visible = true
     end
     local pos
-    local targetPlayer = currentTarget
-    if not targetPlayer then
-        targetPlayer = getClosestPlayer()
-    end
+    local targetPlayer = currentTarget or getClosestOnScreenToCenter()
     if targetPlayer and targetPlayer.Character then
         local head = targetPlayer.Character:FindFirstChild("Head")
         local part = head or getTargetPart(targetPlayer.Character)
