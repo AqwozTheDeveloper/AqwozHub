@@ -108,6 +108,15 @@ CombatTab:CreateToggle({
 })
 
 CombatTab:CreateToggle({
+   Name = "Silent Aim Only on LMB",
+   CurrentValue = false,
+   Flag = "SilentAimRequireMouse",
+   Callback = function(Value)
+        aimbotScripts.toggleSilentAimRequireMouse(Value)
+   end,
+})
+
+CombatTab:CreateToggle({
    Name = "Team Check",
    CurrentValue = false,
    Flag = "TeamCheck",

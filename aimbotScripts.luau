@@ -16,6 +16,7 @@ local wallCheckEnabled = false
 local silentAimEnabled = false
 local namecallHooked = false
 local originalNamecall = nil
+local silentAimRequireMouse = false
 
 -- En yakın oyuncuyu bul
 local function getClosestPlayer()
@@ -138,8 +139,14 @@ local function getAimPoint()
     local target = getClosestPlayer()
     if target and target.Character then
         local head = target.Character:FindFirstChild("Head")
+        local root = target.Character:FindFirstChild("HumanoidRootPart")
         if head then
-            return head.Position
+            local pos = head.Position
+            if root then
+                local vel = root.Velocity
+                pos = pos + vel * 0.05
+            end
+            return pos
         end
     end
     return nil
@@ -151,13 +158,28 @@ local function ensureSilentAimHook()
         local old
         old = hookmetamethod(game, "__namecall", function(self, ...)
             local method = getnamecallmethod()
-            if silentAimEnabled and not checkcaller() and method == "Raycast" then
-                local origin, direction, params = ...
-                if origin and direction then
-                    local aim = getAimPoint()
-                    if aim then
-                        local newDirection = (aim - origin).Unit * direction.Magnitude
-                        return old(self, origin, newDirection, params)
+            if silentAimEnabled and not checkcaller() then
+                if silentAimRequireMouse and not UserInputService:IsMouseButtonPressed(Enum.MouseButton1) then
+                    return old(self, ...)
+                end
+                if method == "Raycast" then
+                    local origin, direction, params = ...
+                    if origin and direction then
+                        local aim = getAimPoint()
+                        if aim then
+                            local newDirection = (aim - origin).Unit * direction.Magnitude
+                            return old(self, origin, newDirection, params)
+                        end
+                    end
+                elseif method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRayWithWhitelist" then
+                    local ray, a2, a3, a4 = ...
+                    if ray and ray.Origin and ray.Direction then
+                        local aim = getAimPoint()
+                        if aim then
+                            local newDirection = (aim - ray.Origin).Unit * ray.Direction.Magnitude
+                            local newRay = Ray.new(ray.Origin, newDirection)
+                            return old(self, newRay, a2, a3, a4)
+                        end
                     end
                 end
             end
@@ -173,13 +195,28 @@ local function ensureSilentAimHook()
         if typeof(setreadonly) == "function" then setreadonly(mt, false) end
         mt.__namecall = newcclosure(function(self, ...)
             local method = getnamecallmethod()
-            if silentAimEnabled and method == "Raycast" then
-                local origin, direction, params = ...
-                if origin and direction then
-                    local aim = getAimPoint()
-                    if aim then
-                        local newDirection = (aim - origin).Unit * direction.Magnitude
-                        return old(self, origin, newDirection, params)
+            if silentAimEnabled then
+                if silentAimRequireMouse and not UserInputService:IsMouseButtonPressed(Enum.MouseButton1) then
+                    return old(self, ...)
+                end
+                if method == "Raycast" then
+                    local origin, direction, params = ...
+                    if origin and direction then
+                        local aim = getAimPoint()
+                        if aim then
+                            local newDirection = (aim - origin).Unit * direction.Magnitude
+                            return old(self, origin, newDirection, params)
+                        end
+                    end
+                elseif method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRayWithWhitelist" then
+                    local ray, a2, a3, a4 = ...
+                    if ray and ray.Origin and ray.Direction then
+                        local aim = getAimPoint()
+                        if aim then
+                            local newDirection = (aim - ray.Origin).Unit * ray.Direction.Magnitude
+                            local newRay = Ray.new(ray.Origin, newDirection)
+                            return old(self, newRay, a2, a3, a4)
+                        end
                     end
                 end
             end
@@ -197,6 +234,11 @@ function module.toggleSilentAim(state)
     if state then
         ensureSilentAimHook()
     end
+end
+
+function module.toggleSilentAimRequireMouse(state)
+    silentAimRequireMouse = state
+    print("[Aimbot] SilentAim require LMB:", state)
 end
 
 return module
