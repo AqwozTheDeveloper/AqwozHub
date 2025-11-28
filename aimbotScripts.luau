@@ -285,9 +285,12 @@ local function aimbotLoop()
     local target = getClosestPlayer()
 
     if target and target.Character then
-        local head = target.Character:FindFirstChild("Head")
         local part
-        if aimHoldActive and head then
+        if aimHoldActive then
+            local head = target.Character:FindFirstChild("Head")
+            if not head then
+                return
+            end
             part = head
         else
             part = getTargetPart(target.Character)
