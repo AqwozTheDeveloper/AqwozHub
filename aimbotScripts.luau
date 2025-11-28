@@ -17,6 +17,13 @@ local silentAimEnabled = false
 local namecallHooked = false
 local originalNamecall = nil
 local silentAimRequireMouse = false
+local silentAimLead = 0.05
+local silentAimHitPart = "Head"
+local silentAimStickFrames = 6
+local silentAimOnScreenOnly = true
+local lastTarget = nil
+local stickCounter = 0
+local silentAimUpdateConn = nil
 
 -- En yakın oyuncuyu bul
 local function getClosestPlayer()
@@ -48,7 +55,7 @@ local function getClosestPlayer()
 
                     if not obstructed then
                         local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-                        if onScreen then
+                        if not silentAimOnScreenOnly or onScreen then
                             local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
                             if distance < shortestDistance then
                                 closestPlayer = player
@@ -136,15 +143,18 @@ function module.toggleWallCheck(state)
 end
 
 local function getAimPoint()
-    local target = getClosestPlayer()
+    local target = lastTarget or getClosestPlayer()
     if target and target.Character then
-        local head = target.Character:FindFirstChild("Head")
-        local root = target.Character:FindFirstChild("HumanoidRootPart")
-        if head then
-            local pos = head.Position
+        local part = target.Character:FindFirstChild(silentAimHitPart)
+        if not part then
+            part = target.Character:FindFirstChild("Head") or target.Character:FindFirstChild("UpperTorso") or target.Character:FindFirstChild("HumanoidRootPart")
+        end
+        if part then
+            local pos = part.Position
+            local root = target.Character:FindFirstChild("HumanoidRootPart")
             if root then
                 local vel = root.Velocity
-                pos = pos + vel * 0.05
+                pos = pos + vel * silentAimLead
             end
             return pos
         end
@@ -233,12 +243,56 @@ function module.toggleSilentAim(state)
     print("[Aimbot] SilentAim:", state)
     if state then
         ensureSilentAimHook()
+        if silentAimUpdateConn then silentAimUpdateConn:Disconnect() end
+        silentAimUpdateConn = RunService.RenderStepped:Connect(function()
+            local current = getClosestPlayer()
+            if current then
+                if current ~= lastTarget then
+                    lastTarget = current
+                    stickCounter = silentAimStickFrames
+                elseif stickCounter > 0 then
+                    stickCounter = stickCounter - 1
+                end
+            else
+                lastTarget = nil
+                stickCounter = 0
+            end
+        end)
+    else
+        if silentAimUpdateConn then
+            silentAimUpdateConn:Disconnect()
+            silentAimUpdateConn = nil
+        end
+        lastTarget = nil
+        stickCounter = 0
     end
 end
 
 function module.toggleSilentAimRequireMouse(state)
     silentAimRequireMouse = state
     print("[Aimbot] SilentAim require LMB:", state)
+end
+
+function module.setSilentAimLeadMs(ms)
+    silentAimLead = math.clamp((ms or 0) / 1000, 0, 0.3)
+    print("[Aimbot] SilentAim lead:", silentAimLead)
+end
+
+function module.setSilentAimHitPart(part)
+    if type(part) == "string" and #part > 0 then
+        silentAimHitPart = part
+        print("[Aimbot] SilentAim hit part:", part)
+    end
+end
+
+function module.setSilentAimStickiness(frames)
+    silentAimStickFrames = math.clamp(frames or 0, 0, 30)
+    print("[Aimbot] SilentAim stickiness frames:", silentAimStickFrames)
+end
+
+function module.toggleSilentAimOnScreenOnly(state)
+    silentAimOnScreenOnly = state
+    print("[Aimbot] SilentAim on-screen only:", state)
 end
 
 return module

@@ -116,6 +116,49 @@ CombatTab:CreateToggle({
    end,
 })
 
+CombatTab:CreateDropdown({
+   Name = "Silent Aim Hit Part",
+   Options = {"Head", "UpperTorso", "HumanoidRootPart"},
+   CurrentOption = "Head",
+   Flag = "SilentAimHitPart",
+   Callback = function(Option)
+        aimbotScripts.setSilentAimHitPart(Option)
+   end,
+})
+
+CombatTab:CreateSlider({
+   Name = "Silent Aim Lead (ms)",
+   Range = {0, 300},
+   Increment = 5,
+   Suffix = "ms",
+   CurrentValue = 50,
+   Flag = "SilentAimLeadMs",
+   Callback = function(Value)
+        aimbotScripts.setSilentAimLeadMs(Value)
+   end,
+})
+
+CombatTab:CreateSlider({
+   Name = "Target Stickiness (frames)",
+   Range = {0, 30},
+   Increment = 1,
+   Suffix = "",
+   CurrentValue = 6,
+   Flag = "SilentAimStickiness",
+   Callback = function(Value)
+        aimbotScripts.setSilentAimStickiness(Value)
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "On-Screen Only Targets",
+   CurrentValue = true,
+   Flag = "SilentAimOnScreenOnly",
+   Callback = function(Value)
+        aimbotScripts.toggleSilentAimOnScreenOnly(Value)
+   end,
+})
+
 CombatTab:CreateToggle({
    Name = "Team Check",
    CurrentValue = false,
