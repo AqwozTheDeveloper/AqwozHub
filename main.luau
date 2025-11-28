@@ -217,3 +217,41 @@ CombatTab:CreateSlider({
         aimbotScripts.setFOV(Value)
    end,
 })
+
+CombatTab:CreateToggle({
+   Name = "Show FOV Circle",
+   CurrentValue = false,
+   Flag = "FOVCircle",
+   Callback = function(Value)
+        aimbotScripts.toggleFOVCircle(Value)
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Aim Only While Key Held",
+   CurrentValue = false,
+   Flag = "AimHoldEnabled",
+   Callback = function(Value)
+        aimbotScripts.setAimHoldEnabled(Value)
+   end,
+})
+
+CombatTab:CreateDropdown({
+   Name = "Aim Hold Key",
+   Options = {"Q", "E", "R", "F", "LeftAlt"},
+   CurrentOption = "Q",
+   Flag = "AimHoldKey",
+   Callback = function(Option)
+        aimbotScripts.setAimHoldKey(Option)
+   end,
+})
+
+CombatTab:CreateDropdown({
+   Name = "Target Priority",
+   Options = {"Mouse", "Distance", "Health"},
+   CurrentOption = "Mouse",
+   Flag = "TargetPriority",
+   Callback = function(Option)
+        aimbotScripts.setTargetPriority(Option)
+   end,
+})

@@ -24,11 +24,19 @@ local silentAimOnScreenOnly = true
 local lastTarget = nil
 local stickCounter = 0
 local silentAimUpdateConn = nil
+local aimHoldEnabled = false
+local aimHoldKey = Enum.KeyCode.Q
+local targetPriorityMode = "Mouse"
+local fovCircleEnabled = false
+local fovCircle = nil
+local fovCircleConn = nil
 
 -- En yakın oyuncuyu bul
 local function getClosestPlayer()
     local closestPlayer = nil
     local shortestDistance = aimbotFOV
+    local bestWorldDist = math.huge
+    local bestHealth = math.huge
 
     local mousePos = UserInputService:GetMouseLocation()
 
@@ -58,8 +66,27 @@ local function getClosestPlayer()
                         if not silentAimOnScreenOnly or onScreen then
                             local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
                             if distance < shortestDistance then
-                                closestPlayer = player
-                                shortestDistance = distance
+                                if targetPriorityMode == "Mouse" then
+                                    closestPlayer = player
+                                    shortestDistance = distance
+                                else
+                                    local lpRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                                    local worldDist = lpRoot and (lpRoot.Position - head.Position).Magnitude or (Camera.CFrame.Position - head.Position).Magnitude
+                                    local health = humanoid.Health
+                                    if targetPriorityMode == "Distance" then
+                                        if worldDist < bestWorldDist then
+                                            bestWorldDist = worldDist
+                                            closestPlayer = player
+                                            shortestDistance = distance
+                                        end
+                                    elseif targetPriorityMode == "Health" then
+                                        if health < bestHealth then
+                                            bestHealth = health
+                                            closestPlayer = player
+                                            shortestDistance = distance
+                                        end
+                                    end
+                                end
                             end
                         end
                     end
@@ -74,6 +101,7 @@ end
 -- Aimbot loop (Smooth)
 local function aimbotLoop()
     if not aimbotEnabled or silentAimEnabled then return end
+    if aimHoldEnabled and not UserInputService:IsKeyDown(aimHoldKey) then return end
 
     local target = getClosestPlayer()
 
@@ -90,6 +118,14 @@ end
 
 function module.init()
     print("[Aimbot] Module initialized")
+    if typeof(Drawing) == "table" and typeof(Drawing.new) == "function" then
+        fovCircle = Drawing.new("Circle")
+        fovCircle.Radius = aimbotFOV
+        fovCircle.Thickness = 1
+        fovCircle.Filled = false
+        fovCircle.Color = Color3.fromRGB(255, 255, 255)
+        fovCircle.Visible = false
+    end
 end
 
 function module.toggleAimbot(state)
@@ -115,6 +151,9 @@ end
 function module.setFOV(value)
     aimbotFOV = value
     print("[Aimbot] FOV set to:", value)
+    if fovCircle then
+        fovCircle.Radius = value
+    end
 end
 
 function module.setSmoothing(value)
@@ -172,6 +211,9 @@ local function ensureSilentAimHook()
                 if silentAimRequireMouse and not UserInputService:IsMouseButtonPressed(Enum.MouseButton1) then
                     return old(self, ...)
                 end
+                if aimHoldEnabled and not UserInputService:IsKeyDown(aimHoldKey) then
+                    return old(self, ...)
+                end
                 if method == "Raycast" then
                     local origin, direction, params = ...
                     if origin and direction then
@@ -207,6 +249,9 @@ local function ensureSilentAimHook()
             local method = getnamecallmethod()
             if silentAimEnabled then
                 if silentAimRequireMouse and not UserInputService:IsMouseButtonPressed(Enum.MouseButton1) then
+                    return old(self, ...)
+                end
+                if aimHoldEnabled and not UserInputService:IsKeyDown(aimHoldKey) then
                     return old(self, ...)
                 end
                 if method == "Raycast" then
@@ -293,6 +338,42 @@ end
 function module.toggleSilentAimOnScreenOnly(state)
     silentAimOnScreenOnly = state
     print("[Aimbot] SilentAim on-screen only:", state)
+end
+
+function module.setAimHoldEnabled(state)
+    aimHoldEnabled = state
+    print("[Aimbot] Aim hold enabled:", state)
+end
+
+function module.setAimHoldKey(key)
+    local map = Enum.KeyCode
+    local kc = map[key] or map.Q
+    aimHoldKey = kc
+    print("[Aimbot] Aim hold key:", key)
+end
+
+function module.setTargetPriority(mode)
+    if mode == "Mouse" or mode == "Distance" or mode == "Health" then
+        targetPriorityMode = mode
+        print("[Aimbot] Target priority:", mode)
+    end
+end
+
+function module.toggleFOVCircle(state)
+    fovCircleEnabled = state
+    print("[Aimbot] FOV circle:", state)
+    if not fovCircle then return end
+    if state then
+        if fovCircleConn then fovCircleConn:Disconnect() end
+        fovCircle.Visible = true
+        fovCircleConn = RunService.RenderStepped:Connect(function()
+            local m = UserInputService:GetMouseLocation()
+            fovCircle.Position = Vector2.new(m.X, m.Y)
+        end)
+    else
+        if fovCircleConn then fovCircleConn:Disconnect() end
+        fovCircle.Visible = false
+    end
 end
 
 return module
