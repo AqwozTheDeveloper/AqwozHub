@@ -1,5 +1,5 @@
--- main.luau - Aqwoz Hub
-local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Orion/main/source'))()
+-- main.luau - Aqwoz Hub (Rayfield Edition)
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- Module Loader
 local function loadModule(path, url)
@@ -16,8 +16,6 @@ local function loadModule(path, url)
         else
             warn("[AqwozHub] Error loading local file: " .. tostring(result))
         end
-    else
-        print("[AqwozHub] Local file not found: " .. path)
     end
 
     -- 2. Fallback to GitHub URL with cache busting
@@ -45,76 +43,69 @@ local aimbotScripts = loadModule("AqwozHub/aimbotScripts.luau", "https://raw.git
 aimbotScripts.init()
 
 -- Window
-local Window = OrionLib:MakeWindow({
+local Window = Rayfield:CreateWindow({
     Name = "Aqwoz Hub",
-    HidePremium = false,
-    SaveConfig = false,
-    ConfigFolder = "OrionConfig",
-    IntroEnabled = false
+    LoadingTitle = "Aqwoz Hub",
+    LoadingSubtitle = "by AqwozTheDeveloper",
+    ConfigurationSaving = {
+       Enabled = true,
+       FolderName = "AqwozHubConfig",
+       FileName = "AqwozHub"
+    },
+    Discord = {
+       Enabled = false,
+       Invite = "noinvitelink",
+       RememberJoins = true
+    },
+    KeySystem = false,
 })
 
 -- Notification
-OrionLib:MakeNotification({
-    Name = "Welcome to AqwozHub",
-    Content = "Welcome to AqwozHub, it's a testing version.",
-    Image = "rbxassetid://139804491781132",
-    Time = 5
+Rayfield:Notify({
+   Title = "Welcome to AqwozHub",
+   Content = "Script loaded successfully! Testing version.",
+   Duration = 5,
+   Image = 4483362458,
 })
 
--- Ana Tab
-local AqwozHub = Window:MakeTab({
-    Name = "AqwozHub",
-    Icon = "rbxassetid://12905962634",
-    PremiumOnly = false
-})
+-- Tabs
+local MainTab = Window:CreateTab("Home", 4483362458) -- Title, Image
+local VisionTab = Window:CreateTab("Visuals", 4483362458)
+local CombatTab = Window:CreateTab("Combat", 4483362458)
 
-AqwozHub:AddParagraph("Welcome to AqwozHub!", "Hello, this script is only getting developed by one person. Updates are on the way.")
+-- Home Tab
+MainTab:CreateParagraph({Title = "Welcome!", Content = "Hello, this script is developed by Aqwoz. Updates are on the way."})
 
 -- Vision Tab
-local VisionTab = Window:MakeTab({
-    Name = "Player Vision",
-    Icon = "rbxassetid://10906937488",
-    PremiumOnly = false
-})
-
-VisionTab:AddToggle({
-    Name = "Enable ESP",
-    Default = false,
-    Callback = function(Value)
+VisionTab:CreateToggle({
+   Name = "Enable ESP",
+   CurrentValue = false,
+   Flag = "ESPToggle", -- A flag is the identifier for the configuration file
+   Callback = function(Value)
         visionScripts.toggleESP(Value)
-    end
+   end,
 })
 
--- Aimbot Tab
-local AimSectionTab = Window:MakeTab({
-    Name = "Aimbot",
-    Icon = "rbxassetid://10906937488",
-    PremiumOnly = false
-})
+-- Combat Tab
+CombatTab:CreateSection("Aimbot Settings")
 
-local AimSection = AimSectionTab:AddSection({
-    Name = "Aim Section"
-})
-
-AimSection:AddToggle({
-    Name = "Enable Aimbot",
-    Default = false,
-    Callback = function(Value)
+CombatTab:CreateToggle({
+   Name = "Enable Aimbot",
+   CurrentValue = false,
+   Flag = "AimbotToggle",
+   Callback = function(Value)
         aimbotScripts.toggleAimbot(Value)
-    end
+   end,
 })
 
-AimSection:AddSlider({
-    Name = "Aimbot FOV",
-    Min = 50,
-    Max = 500,
-    Default = 200,
-    Color = Color3.fromRGB(255, 255, 255),
-    Increment = 10,
-    Callback = function(Value)
+CombatTab:CreateSlider({
+   Name = "Aimbot FOV",
+   Range = {10, 500},
+   Increment = 10,
+   Suffix = "px",
+   CurrentValue = 200,
+   Flag = "FOV",
+   Callback = function(Value)
         aimbotScripts.setFOV(Value)
-    end
+   end,
 })
-
--- Initialize
-OrionLib:Init()
