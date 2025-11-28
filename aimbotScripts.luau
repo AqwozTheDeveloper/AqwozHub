@@ -235,24 +235,37 @@ local function getClosestOnScreenToCenter()
         return false
     end
 
+    local function isFriend(player)
+        local ok, res = pcall(function()
+            return LocalPlayer:IsFriendsWith(player.UserId)
+        end)
+        return ok and res == true
+    end
+
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             if teamCheckEnabled and isTeammate(player) then
             else
-                local head = player.Character:FindFirstChild("Head")
-                local part = head or getTargetPart(player.Character)
-                if part then
-                    local humanoid = player.Character:FindFirstChild("Humanoid")
-                    if humanoid and humanoid.Health > 0 then
-                        local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
-                        if onScreen and isVisible(player.Character, part) then
-                            local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
-                            if aimbotMaxDistance and aimbotMaxDistance > 0 and worldDist > aimbotMaxDistance then
-                            else
-                                local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                                if dist < bestDist then
-                                    bestDist = dist
-                                    best = player
+                if friendExcludeEnabled and isFriend(player) then
+                else
+                    local head = player.Character:FindFirstChild("Head")
+                    local part = head or getTargetPart(player.Character)
+                    if part then
+                        local humanoid = player.Character:FindFirstChild("Humanoid")
+                        if humanoid and humanoid.Health > 0 then
+                            local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                            if onScreen and isVisible(player.Character, part) then
+                                if blacklistEnabled and blacklist[player.Name] then
+                                else
+                                    local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
+                                    if aimbotMaxDistance and aimbotMaxDistance > 0 and worldDist > aimbotMaxDistance then
+                                    else
+                                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                                        if dist < bestDist then
+                                            bestDist = dist
+                                            best = player
+                                        end
+                                    end
                                 end
                             end
                         end
@@ -260,7 +273,6 @@ local function getClosestOnScreenToCenter()
                 end
             end
         end
-    end
     return best
 end
 
