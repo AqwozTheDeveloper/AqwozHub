@@ -10,7 +10,9 @@ local module = {}
 local aimbotEnabled = false
 local aimbotFOV = 200
 local aimbotConnection = nil
-local aimbotSmoothing = 0.1 -- Daha smooth aim için
+local aimbotSmoothing = 0.1
+local teamCheckEnabled = false
+local wallCheckEnabled = false
 
 -- En yakın oyuncuyu bul
 local function getClosestPlayer()
@@ -25,14 +27,30 @@ local function getClosestPlayer()
             local head = player.Character:FindFirstChild("Head")
 
             if humanoid and humanoid.Health > 0 and head then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+                if teamCheckEnabled and LocalPlayer.Team and player.Team and LocalPlayer.Team == player.Team then
+                    
+                else
+                    local obstructed = false
+                    if wallCheckEnabled then
+                        local params = RaycastParams.new()
+                        params.FilterType = Enum.RaycastFilterType.Exclude
+                        params.FilterDescendantsInstances = {LocalPlayer.Character}
+                        local direction = head.Position - Camera.CFrame.Position
+                        local result = workspace:Raycast(Camera.CFrame.Position, direction, params)
+                        if result and not result.Instance:IsDescendantOf(player.Character) then
+                            obstructed = true
+                        end
+                    end
 
-                if onScreen then
-                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-
-                    if distance < shortestDistance then
-                        closestPlayer = player
-                        shortestDistance = distance
+                    if not obstructed then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+                        if onScreen then
+                            local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                            if distance < shortestDistance then
+                                closestPlayer = player
+                                shortestDistance = distance
+                            end
+                        end
                     end
                 end
             end
@@ -89,8 +107,9 @@ function module.setFOV(value)
 end
 
 function module.setSmoothing(value)
-    aimbotSmoothing = value
-    print("[Aimbot] Smoothing set to:", value)
+    local alpha = math.clamp(value / 10, 0.01, 1)
+    aimbotSmoothing = alpha
+    print("[Aimbot] Smoothing set to:", alpha)
 end
 
 function module.destroy()
@@ -100,6 +119,16 @@ function module.destroy()
         aimbotConnection:Disconnect()
         aimbotConnection = nil
     end
+end
+
+function module.toggleTeamCheck(state)
+    teamCheckEnabled = state
+    print("[Aimbot] TeamCheck:", state)
+end
+
+function module.toggleWallCheck(state)
+    wallCheckEnabled = state
+    print("[Aimbot] WallCheck:", state)
 end
 
 return module
