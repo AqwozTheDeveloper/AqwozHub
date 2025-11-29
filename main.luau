@@ -79,6 +79,7 @@ local profileManager = loadModule("profileManager.luau", "https://raw.githubuser
 -- Aimbot module
 local aimbotScripts = loadModule("aimbotScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/aimbotScripts.luau")
 aimbotScripts.init()
+local currentAimbot = aimbotScripts
 local gameplayScripts = loadModule("gameplayScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/gameplayScripts.luau")
 gameplayScripts.init()
 profileManager.init()
@@ -352,6 +353,30 @@ CombatTab:CreateToggle({
    Flag = "PointerLock",
    Callback = function(Value)
         aimbotScripts.togglePointerLock(Value)
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Use Legacy Aimbot",
+   CurrentValue = false,
+   Flag = "LegacyAimbot",
+   Callback = function(Value)
+        local flags = collectFlags()
+        if Value then
+            if currentAimbot and currentAimbot.destroy then currentAimbot.destroy() end
+            local legacy = loadModule("oldworkingaim.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/oldworkingaim.luau")
+            legacy.init()
+            aimbotScripts = legacy
+            currentAimbot = legacy
+            applyFlags(flags)
+        else
+            if currentAimbot and currentAimbot.destroy then currentAimbot.destroy() end
+            local modern = loadModule("aimbotScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/aimbotScripts.luau")
+            modern.init()
+            aimbotScripts = modern
+            currentAimbot = modern
+            applyFlags(flags)
+        end
    end,
 })
 
