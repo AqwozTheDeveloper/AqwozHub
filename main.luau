@@ -596,37 +596,125 @@ collectFlags = function()
 end
 
 local APPLY = {
-    ESPToggle = function(v) visionScripts.toggleESP(v) end,
-    AimbotToggle = function(v) aimbotScripts.toggleAimbot(v) end,
-    TeamCheck = function(v) aimbotScripts.toggleTeamCheck(v) end,
-    FriendExclude = function(v) aimbotScripts.toggleFriendExclude(v) end,
-    WallCheck = function(v) aimbotScripts.toggleWallCheck(v) end,
-    Smoothing = function(v) aimbotScripts.setSmoothing(v) end,
-    FOV = function(v) aimbotScripts.setFOV(v) end,
-    MaxAngle = function(v) aimbotScripts.setMaxAngle(v) end,
-    LeadEnable = function(v) aimbotScripts.toggleLead(v) end,
-    ProjectileSpeed = function(v) aimbotScripts.setProjectileSpeed(v) end,
-    StickyLockMs = function(v) aimbotScripts.setStickyLockMs(v) end,
-    SnapAngle = function(v) aimbotScripts.setSnapAngle(v) end,
-    MaxTurnRate = function(v) aimbotScripts.setMaxTurnRateDeg(v) end,
-    AimCurve = function(v) aimbotScripts.setAimCurve(v) end,
-    ADSOnlyLock = function(v) aimbotScripts.toggleADSOnlyLock(v) end,
-    MaxDistance = function(v) aimbotScripts.setMaxDistance(v) end,
-    HoldAim = function(v) aimbotScripts.toggleHoldToAim(v) end,
-    FOVCircle = function(v) aimbotScripts.toggleFOVCircle(v) end,
-    DynamicSmoothing = function(v) aimbotScripts.toggleDynamicSmoothing(v) end,
-    PointerLock = function(v) aimbotScripts.togglePointerLock(v) end,
-    FOVColor = function(v) aimbotScripts.setFOVCircleColor(v) end,
-    FOVStroke = function(v) aimbotScripts.setFOVStrokeThickness(v) end,
-    PointerSize = function(v) aimbotScripts.setPointerSize(v) end,
-    PointerColor = function(v) aimbotScripts.setPointerColor(v) end,
-    PointerADSOnly = function(v) aimbotScripts.togglePointerADSOnly(v) end,
-    DebugOverlay = function(v) aimbotScripts.toggleDebug(v) end,
-    FastReload = function(v) gameplayScripts.toggleFastReload(v) end,
-    ReloadSpeed = function(v) gameplayScripts.setReloadAnimSpeed(v) end,
-    ReloadCancel = function(v) gameplayScripts.toggleReloadCancel(v) end,
-    CancelDelay = function(v) gameplayScripts.setReloadCancelDelay(v) end,
-    KeyToggle = function(v) aimbotScripts.toggleKeyToggle(v) end,
+    ESPToggle = function(v)
+        if visionScripts and visionScripts.toggleESP then visionScripts.toggleESP(v) end
+    end,
+    AimbotToggle = function(v)
+        local fn = aimbotScripts and aimbotScripts.toggleAimbot
+        if fn then fn(v) end
+    end,
+    TeamCheck = function(v)
+        local fn = aimbotScripts and aimbotScripts.toggleTeamCheck
+        if fn then fn(v) end
+    end,
+    FriendExclude = function(v)
+        local fn = aimbotScripts and aimbotScripts.toggleFriendExclude
+        if fn then fn(v) end
+    end,
+    WallCheck = function(v)
+        local fn = aimbotScripts and aimbotScripts.toggleWallCheck
+        if fn then fn(v) end
+    end,
+    Smoothing = function(v)
+        local fn = aimbotScripts and aimbotScripts.setSmoothing
+        if fn then fn(v) end
+    end,
+    FOV = function(v)
+        local fn = aimbotScripts and aimbotScripts.setFOV
+        if fn then fn(v) end
+    end,
+    MaxAngle = function(v)
+        local fn = aimbotScripts and aimbotScripts.setMaxAngle
+        if fn then fn(v) end
+    end,
+    LeadEnable = function(v)
+        local fn = aimbotScripts and aimbotScripts.toggleLead
+        if fn then fn(v) end
+    end,
+    ProjectileSpeed = function(v)
+        local fn = aimbotScripts and aimbotScripts.setProjectileSpeed
+        if fn then fn(v) end
+    end,
+    StickyLockMs = function(v)
+        local fn = aimbotScripts and aimbotScripts.setStickyLockMs
+        if fn then fn(v) end
+    end,
+    SnapAngle = function(v)
+        local fn = aimbotScripts and aimbotScripts.setSnapAngle
+        if fn then fn(v) end
+    end,
+    MaxTurnRate = function(v)
+        local fn = aimbotScripts and aimbotScripts.setMaxTurnRateDeg
+        if fn then fn(v) end
+    end,
+    AimCurve = function(v)
+        local fn = aimbotScripts and aimbotScripts.setAimCurve
+        if fn then fn(v) end
+    end,
+    ADSOnlyLock = function(v)
+        local fn = aimbotScripts and aimbotScripts.toggleADSOnlyLock
+        if fn then fn(v) end
+    end,
+    MaxDistance = function(v)
+        local fn = aimbotScripts and aimbotScripts.setMaxDistance
+        if fn then fn(v) end
+    end,
+    HoldAim = function(v)
+        local fn = aimbotScripts and aimbotScripts.toggleHoldToAim
+        if fn then fn(v) end
+    end,
+    FOVCircle = function(v)
+        local fn = aimbotScripts and aimbotScripts.toggleFOVCircle
+        if fn then fn(v) end
+    end,
+    DynamicSmoothing = function(v)
+        local fn = aimbotScripts and aimbotScripts.toggleDynamicSmoothing
+        if fn then fn(v) end
+    end,
+    PointerLock = function(v)
+        local fn = aimbotScripts and aimbotScripts.togglePointerLock
+        if fn then fn(v) end
+    end,
+    FOVColor = function(v)
+        local fn = aimbotScripts and aimbotScripts.setFOVCircleColor
+        if fn then fn(v) end
+    end,
+    FOVStroke = function(v)
+        local fn = aimbotScripts and aimbotScripts.setFOVStrokeThickness
+        if fn then fn(v) end
+    end,
+    PointerSize = function(v)
+        local fn = aimbotScripts and aimbotScripts.setPointerSize
+        if fn then fn(v) end
+    end,
+    PointerColor = function(v)
+        local fn = aimbotScripts and aimbotScripts.setPointerColor
+        if fn then fn(v) end
+    end,
+    PointerADSOnly = function(v)
+        local fn = aimbotScripts and aimbotScripts.togglePointerADSOnly
+        if fn then fn(v) end
+    end,
+    DebugOverlay = function(v)
+        local fn = aimbotScripts and aimbotScripts.toggleDebug
+        if fn then fn(v) end
+    end,
+    FastReload = function(v)
+        if gameplayScripts and gameplayScripts.toggleFastReload then gameplayScripts.toggleFastReload(v) end
+    end,
+    ReloadSpeed = function(v)
+        if gameplayScripts and gameplayScripts.setReloadAnimSpeed then gameplayScripts.setReloadAnimSpeed(v) end
+    end,
+    ReloadCancel = function(v)
+        if gameplayScripts and gameplayScripts.toggleReloadCancel then gameplayScripts.toggleReloadCancel(v) end
+    end,
+    CancelDelay = function(v)
+        if gameplayScripts and gameplayScripts.setReloadCancelDelay then gameplayScripts.setReloadCancelDelay(v) end
+    end,
+    KeyToggle = function(v)
+        local fn = aimbotScripts and aimbotScripts.toggleKeyToggle
+        if fn then fn(v) end
+    end,
 }
 
 applyFlags = function(flags)
