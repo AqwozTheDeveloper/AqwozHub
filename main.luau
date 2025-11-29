@@ -79,10 +79,12 @@ local profileManager = loadModule("profileManager.luau", "https://raw.githubuser
 -- Aimbot module
 local aimbotScripts = loadModule("aimbotScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/aimbotScripts.luau")
 aimbotScripts.init()
-local currentAimbot = aimbotScripts
 local gameplayScripts = loadModule("gameplayScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/main/gameplayScripts.luau")
 gameplayScripts.init()
 profileManager.init()
+local currentAimbot = aimbotScripts
+local collectFlags
+local applyFlags
 
 -- Window
 local Window = Rayfield:CreateWindow({
@@ -147,7 +149,7 @@ CombatTab:CreateToggle({
 
 CombatTab:CreateToggle({
    Name = "Team Check",
-   CurrentValue = true,
+   CurrentValue = false,
    Flag = "TeamCheck",
    Callback = function(Value)
         aimbotScripts.toggleTeamCheck(Value)
@@ -322,7 +324,7 @@ CombatTab:CreateSection("Aim Assist UI")
 
 CombatTab:CreateToggle({
    Name = "Hold to Aim (RMB)",
-   CurrentValue = false,
+   CurrentValue = true,
    Flag = "HoldAim",
    Callback = function(Value)
         aimbotScripts.toggleHoldToAim(Value)
@@ -584,7 +586,7 @@ local function getFlagValue(flag)
     return val
 end
 
-local function collectFlags()
+collectFlags = function()
     local out = {}
     for _, f in ipairs(ALL_FLAGS) do
         local v = getFlagValue(f)
@@ -627,7 +629,7 @@ local APPLY = {
     KeyToggle = function(v) aimbotScripts.toggleKeyToggle(v) end,
 }
 
-local function applyFlags(flags)
+applyFlags = function(flags)
     for k, v in pairs(flags or {}) do
         local fn = APPLY[k]
         if fn then
