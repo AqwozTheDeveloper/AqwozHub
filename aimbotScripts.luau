@@ -113,7 +113,12 @@ local function getClosestPlayer()
     local function isValidPlayer(player)
         if player == LocalPlayer or not player.Character then return false end
         local humanoid = player.Character:FindFirstChild("Humanoid")
-        local part = getTargetPart(player.Character)
+        local part
+        if aimHoldActive then
+            part = player.Character:FindFirstChild("Head") or getTargetPart(player.Character)
+        else
+            part = getTargetPart(player.Character)
+        end
         if not humanoid or humanoid.Health <= 0 or not part then return false end
         if teamCheckEnabled and isTeammate(player) then return false end
         if friendExcludeEnabled and isFriend(player) then return false end
@@ -155,7 +160,12 @@ local function getClosestPlayer()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local humanoid = player.Character:FindFirstChild("Humanoid")
-            local part = getTargetPart(player.Character)
+            local part
+            if aimHoldActive then
+                part = player.Character:FindFirstChild("Head") or getTargetPart(player.Character)
+            else
+                part = getTargetPart(player.Character)
+            end
 
             if humanoid and humanoid.Health > 0 and part then
                 if teamCheckEnabled and isTeammate(player) then
