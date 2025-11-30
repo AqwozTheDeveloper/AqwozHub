@@ -273,6 +273,7 @@ local Window = Rayfield:CreateWindow({
         Title = "Aqwoz Hub - Key Required",
         Subtitle = "Daily Key System",
         Note = "Link COPIED to clipboard! Paste in browser to get key.\nKey changes " .. KEY_ROTATION,
+        FolderName = "AqwozHubConfig", -- Save key in same folder as config
         FileName = "AqwozHubKey_" .. os.date("%Y%m%d"), -- New file each day = key expires
         SaveKey = true,
         GrabKeyFromSite = USE_REMOTE_KEY,

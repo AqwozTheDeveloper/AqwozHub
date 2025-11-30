@@ -112,74 +112,34 @@ local function getClosestPlayer()
         return currentTarget
     end
 
-    local playerCount = 0
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            playerCount = playerCount + 1
-            
-            if not player.Character then
-                debugLog("Player", player.Name, "- No character")
-                continue
-            end
-            
+        if player ~= LocalPlayer and player.Character then
             local humanoid = player.Character:FindFirstChild("Humanoid")
             local part = getTargetPart(player.Character)
 
-            if not humanoid then
-                debugLog("Player", player.Name, "- No humanoid")
-                continue
-            end
-            
-            if humanoid.Health <= 0 then
-                debugLog("Player", player.Name, "- Dead")
-                continue
-            end
-            
-            if not part then
-                debugLog("Player", player.Name, "- No target part")
-                continue
-            end
+            if humanoid and humanoid.Health > 0 and part then
+                if teamCheckEnabled and player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team then
+                    continue
+                end
 
-            if teamCheckEnabled and player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team then
-                debugLog("Player", player.Name, "- Same team")
-                continue
-            end
+                local Camera = getCamera()
+                local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
 
-            local Camera = getCamera()
-            local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
-
-            if not onScreen then
-                debugLog("Player", player.Name, "- Not on screen")
-                continue
-            end
-            
-            if not isVisible(player.Character, part) then
-                debugLog("Player", player.Name, "- Not visible (wall)")
-                continue
-            end
-
-            local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-            debugLog("Player", player.Name, "- Distance:", math.floor(distance), "FOV:", aimbotFOV)
-            
-            if aimbotMaxDistance and aimbotMaxDistance > 0 then
-                local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
-                if worldDist > aimbotMaxDistance then
-                    debugLog("Player", player.Name, "- Too far (studs)")
-                    distance = math.huge
+                if onScreen and isVisible(player.Character, part) then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if aimbotMaxDistance and aimbotMaxDistance > 0 then
+                        local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
+                        if worldDist > aimbotMaxDistance then
+                            distance = math.huge
+                        end
+                    end
+                    if distance < shortestDistance then
+                        closestPlayer = player
+                        shortestDistance = distance
+                    end
                 end
             end
-            
-            if distance < shortestDistance then
-                closestPlayer = player
-                shortestDistance = distance
-            end
         end
-    end
-    
-    if playerCount == 0 then
-        debugLog("No other players in game")
-    elseif not closestPlayer then
-        debugLog("No valid target found out of", playerCount, "players")
     end
 
     return closestPlayer
@@ -200,54 +160,42 @@ local function moveCursorToTarget(screenPos, factor)
     local deltaX = (screenPos.X - center.X) * factor
     local deltaY = (screenPos.Y - center.Y - guiInset.Y) * factor
     
-    -- Round to integers (required for some executors like Xeno)
-    deltaX = math.floor(deltaX + 0.5)
-    deltaY = math.floor(deltaY + 0.5)
+    debugLog("moveCursorToTarget: deltaX=", math.floor(deltaX), "deltaY=", math.floor(deltaY))
     
-    -- Skip if delta is too small
-    if math.abs(deltaX) < 1 and math.abs(deltaY) < 1 then
-        return true -- Already on target
-    end
-    
-    debugLog("moveCursorToTarget: deltaX=", deltaX, "deltaY=", deltaY)
-    
-    -- Try mousemoverel (Synapse, Xeno, Script-Ware, etc.)
-    if typeof(mousemoverel) == "function" then
-        local success = pcall(mousemoverel, deltaX, deltaY)
+    -- Try mousemoverel (most common executor function)
+    if mousemoverel then
+        local success = pcall(function()
+            mousemoverel(deltaX, deltaY)
+        end)
         if success then 
             debugLog("mousemoverel succeeded")
             return true 
         end
     end
     
-    -- Try Input.MouseMove (some executors)
-    if typeof(Input) == "table" and typeof(Input.MouseMove) == "function" then
-        local success = pcall(Input.MouseMove, deltaX, deltaY)
+    -- Try Input.MouseMove
+    if Input and Input.MouseMove then
+        local success = pcall(function()
+            Input.MouseMove(deltaX, deltaY)
+        end)
         if success then 
             debugLog("Input.MouseMove succeeded")
             return true 
         end
     end
     
-    -- Try mouse_move (Fluxus, etc.)
-    if typeof(mouse_move) == "function" then
-        local success = pcall(mouse_move, deltaX, deltaY)
+    -- Try mouse_move
+    if mouse_move then
+        local success = pcall(function()
+            mouse_move(deltaX, deltaY)
+        end)
         if success then 
             debugLog("mouse_move succeeded")
             return true 
         end
     end
     
-    -- Try mousemoveabs (absolute positioning)
-    if typeof(mousemoveabs) == "function" then
-        local success = pcall(mousemoveabs, screenPos.X, screenPos.Y)
-        if success then
-            debugLog("mousemoveabs succeeded")
-            return true
-        end
-    end
-    
-    debugLog("No mouse movement function available - using camera fallback")
+    debugLog("No mouse movement function available")
     return false
 end
 
@@ -329,22 +277,6 @@ end
 
 function module.init()
     print("[Aimbot] Module initialized")
-    
-    -- Check executor capabilities
-    local mouseFunc = "NONE"
-    if typeof(mousemoverel) == "function" then
-        mouseFunc = "mousemoverel"
-    elseif typeof(Input) == "table" and typeof(Input.MouseMove) == "function" then
-        mouseFunc = "Input.MouseMove"
-    elseif typeof(mouse_move) == "function" then
-        mouseFunc = "mouse_move"
-    elseif typeof(mousemoveabs) == "function" then
-        mouseFunc = "mousemoveabs"
-    end
-    print("[Aimbot] Mouse function available:", mouseFunc)
-    if mouseFunc == "NONE" then
-        warn("[Aimbot] No mouse function found! Aimbot will use camera fallback (may not work in all games)")
-    end
     if not inputBeganConn then
         inputBeganConn = UserInputService.InputBegan:Connect(function(input, gpe)
             if gpe then return end
