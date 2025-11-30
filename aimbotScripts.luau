@@ -354,9 +354,16 @@ end
 local function updateFOVCircle()
     if not fovCircleEnabled then return end
     if not fovGui or not fovFrame then return end
-    local mouse = UserInputService:GetMouseLocation()
+    
+    local Camera = getCamera()
+    if not Camera then return end
+    local viewport = Camera.ViewportSize
+    local center = Vector2.new(viewport.X / 2, viewport.Y / 2)
+    local guiInset = GuiService:GetGuiInset()
+    
     fovFrame.Size = UDim2.fromOffset(aimbotFOV * 2, aimbotFOV * 2)
-    fovFrame.Position = UDim2.fromOffset(mouse.X, mouse.Y)
+    fovFrame.Position = UDim2.fromOffset(center.X, center.Y + guiInset.Y)
+    
     if fovStroke then
         if currentTarget then
             fovStroke.Color = fovLockedColor

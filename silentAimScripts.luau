@@ -195,12 +195,12 @@ function module.init()
     oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
         local method = getnamecallmethod()
         local args = {...}
-        checkcaller() then return oldNamecall(self, ...) end
-        if 
+        
+        if checkcaller() then return oldNamecall(self, ...) end
         if not silentAimEnabled then
             return oldNamecall(self, ...)
-        end
         
+        if 
         -- Workspace Raycast hook
         if self == workspace then
             if method == "Raycast" then
