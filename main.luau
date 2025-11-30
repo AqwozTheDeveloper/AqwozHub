@@ -229,6 +229,11 @@ local REMOTE_KEY_URL = "https://pastebin.com/raw/YOURPASTEBIN"
 local DISCORD_ENABLED = true
 local DISCORD_INVITE = "aqwozhub" -- Your Discord invite code
 
+-- Auto-copy link to clipboard so user has it immediately
+if setclipboard then
+    setclipboard(KEY_LINK)
+end
+
 -- ============================================
 -- HOW TO USE DAILY KEYS WITH WORK.INK:
 -- ============================================
@@ -267,7 +272,7 @@ local Window = Rayfield:CreateWindow({
     KeySettings = {
         Title = "Aqwoz Hub - Key Required",
         Subtitle = "Daily Key System",
-        Note = "Key changes " .. KEY_ROTATION .. "! Get it from work.ink or discord.gg/" .. DISCORD_INVITE,
+        Note = "Link COPIED to clipboard! Paste in browser to get key.\nKey changes " .. KEY_ROTATION,
         FileName = "AqwozHubKey_" .. os.date("%Y%m%d"), -- New file each day = key expires
         SaveKey = true,
         GrabKeyFromSite = USE_REMOTE_KEY,
