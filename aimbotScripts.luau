@@ -136,6 +136,45 @@ local function getClosestPlayer()
     return closestPlayer
 end
 
+-- Move mouse cursor to target position
+local function moveCursorToTarget(screenPos, factor)
+    local Camera = getCamera()
+    if not Camera then return false end
+    
+    local viewportSize = Camera.ViewportSize
+    local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+    local guiInset = GuiService:GetGuiInset()
+    
+    local deltaX = (screenPos.X - center.X) * factor
+    local deltaY = (screenPos.Y - center.Y - guiInset.Y) * factor
+    
+    -- Try mousemoverel (most common executor function)
+    if mousemoverel then
+        local success = pcall(function()
+            mousemoverel(deltaX, deltaY)
+        end)
+        if success then return true end
+    end
+    
+    -- Try Input.MouseMove
+    if Input and Input.MouseMove then
+        local success = pcall(function()
+            Input.MouseMove(deltaX, deltaY)
+        end)
+        if success then return true end
+    end
+    
+    -- Try mouse_move
+    if mouse_move then
+        local success = pcall(function()
+            mouse_move(deltaX, deltaY)
+        end)
+        if success then return true end
+    end
+    
+    return false
+end
+
 -- Aimbot loop (Smooth)
 local function aimbotLoop()
     if not aimbotEnabled then 
@@ -175,10 +214,19 @@ local function aimbotLoop()
                 factor = math.clamp(factor * ratio, 0.01, 1)
             end
             
-            -- Always use camera-based aiming (most reliable)
-            -- This works on all executors without special functions
-            local targetCFrame = CFrame.new(Camera.CFrame.Position, part.Position)
-            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, factor)
+            -- Get target screen position
+            local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+            
+            if onScreen then
+                -- Try to move cursor to target (works if executor supports it)
+                local cursorMoved = moveCursorToTarget(Vector2.new(screenPos.X, screenPos.Y), factor)
+                
+                -- If cursor move failed, use camera-based aiming as fallback
+                if not cursorMoved then
+                    local targetCFrame = CFrame.new(Camera.CFrame.Position, part.Position)
+                    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, factor)
+                end
+            end
             
             currentTarget = target
         else
