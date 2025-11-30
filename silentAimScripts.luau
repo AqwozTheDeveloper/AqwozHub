@@ -45,6 +45,7 @@ local function ensureFOVGui()
     fovFrame = Instance.new("Frame")
     fovFrame.Name = "FOVCircle"
     fovFrame.BackgroundTransparency = 1
+    fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
     fovFrame.Position = UDim2.fromOffset(0, 0)
     fovFrame.Size = UDim2.fromOffset(silentAimFOV * 2, silentAimFOV * 2)
     fovFrame.Parent = fovGui
@@ -68,9 +69,6 @@ local function updateFOVCircle()
     
     local mouse = UserInputService:GetMouseLocation()
     fovFrame.Size = UDim2.fromOffset(silentAimFOV * 2, silentAimFOV * 2)
-    -- Set AnchorPoint to center the frame on mouse coordinates
-    fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-    -- Position the frame at mouse coordinates
     fovFrame.Position = UDim2.fromOffset(mouse.X, mouse.Y)
 end
 
