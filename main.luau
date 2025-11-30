@@ -221,7 +221,7 @@ local VALID_KEYS = {
 
 -- work.ink link - You need to UPDATE this with today's key!
 -- Or use the Pastebin method below for automatic updates
-local KEY_LINK = "https://work.ink/YOUR_LINK_HERE"
+local KEY_LINK = "https://work.ink/29b8/get-key"
 
 -- AUTOMATIC KEY METHOD (Recommended):
 -- Instead of work.ink, use a Pastebin that YOU update daily with the key
