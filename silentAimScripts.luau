@@ -2,7 +2,9 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Camera = workspace.CurrentCamera
+local function getCamera()
+    return workspace.CurrentCamera
+end
 local LocalPlayer = Players.LocalPlayer
 
 local module = {}
@@ -14,14 +16,74 @@ local teamCheckEnabled = false
 local targetPartName = "Head"
 local maxAngleDeg = 180
 
+-- Visuals
+local fovCircleEnabled = false
+local fovGui = nil
+local fovFrame = nil
+local fovStroke = nil
+local fovConnection = nil
+local fovColor = Color3.fromRGB(255, 0, 0) -- Red for Silent Aim to distinguish from Legit
+
+local function ensureFOVGui()
+    if fovGui and fovFrame then return true end
+    local pg = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui")
+    if not pg then return false end
+    
+    -- Cleanup
+    local old = pg:FindFirstChild("AqwozHubSilentFOV")
+    if old then old:Destroy() end
+
+    fovGui = Instance.new("ScreenGui")
+    fovGui.Name = "AqwozHubSilentFOV"
+    fovGui.IgnoreGuiInset = true
+    fovGui.ResetOnSpawn = false
+    fovGui.Parent = pg
+    
+    fovFrame = Instance.new("Frame")
+    fovFrame.Name = "FOVCircle"
+    fovFrame.BackgroundTransparency = 1
+    fovFrame.Position = UDim2.fromOffset(0, 0)
+    fovFrame.Size = UDim2.fromOffset(silentAimFOV * 2, silentAimFOV * 2)
+    fovFrame.Parent = fovGui
+    
+    fovStroke = Instance.new("UIStroke")
+    fovStroke.Thickness = 2
+    fovStroke.Transparency = 0.3
+    fovStroke.Color = fovColor
+    fovStroke.Parent = fovFrame
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = fovFrame
+    
+    return true
+end
+
+local function updateFOVCircle()
+    if not fovCircleEnabled then return end
+    if not fovGui or not fovFrame or not fovFrame.Parent then return end
+    
+    local mouse = UserInputService:GetMouseLocation()
+    fovFrame.Size = UDim2.fromOffset(silentAimFOV * 2, silentAimFOV * 2)
+    -- With AnchorPoint 0.5,0.5, we just set position to mouse coords
+    fovFrame.Position = UDim2.fromOffset(mouse.X, mouse.Y)
+end
+
 local function getTargetPart(character)
     local part = character:FindFirstChild(targetPartName)
     if part then return part end
+    
+    -- R6 Compatibility
+    if targetPartName == "UpperTorso" then
+        local torso = character:FindFirstChild("Torso")
+        if torso then return torso end
+    end
+    
     if targetPartName ~= "Head" then
         local fallback = character:FindFirstChild("Head")
         if fallback then return fallback end
     end
-    return character:FindFirstChild("UpperTorso") or character:FindFirstChild("HumanoidRootPart")
+    return character:FindFirstChild("UpperTorso") or character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
 end
 
 local function getClosestPlayer()
@@ -41,22 +103,24 @@ local function getClosestPlayer()
                     continue
                 end
 
-                local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                local camera = getCamera()
+                if not camera then continue end
+                local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
 
                 if onScreen then
                     local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
 
                     -- Max distance check
                     if silentAimMaxDistance and silentAimMaxDistance > 0 then
-                        local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
+                        local worldDist = (part.Position - camera.CFrame.Position).Magnitude
                         if worldDist > silentAimMaxDistance then
                             continue
                         end
                     end
 
                     -- Max angle check
-                    local toTarget = (part.Position - Camera.CFrame.Position).Unit
-                    local angle = math.deg(math.acos(math.clamp(Camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
+                    local toTarget = (part.Position - camera.CFrame.Position).Unit
+                    local angle = math.deg(math.acos(math.clamp(camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
                     if angle > maxAngleDeg then
                         continue
                     end
@@ -93,6 +157,7 @@ function module.init()
     -- __index hook (Mouse.Hit, Mouse.Target, UnitRay)
     local oldIndex
     oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
+        if checkcaller() then return oldIndex(self, key) end
         if not silentAimEnabled then
             return oldIndex(self, key)
         end
@@ -100,6 +165,10 @@ function module.init()
         if self:IsA("Mouse") then
             local targetPos = getSilentAimTarget()
             if targetPos then
+                local camera = getCamera()
+                if not camera then
+                    return oldIndex(self, key)
+                end
                 if key == "Hit" then
                     return CFrame.new(targetPos)
                 elseif key == "Target" then
@@ -108,11 +177,11 @@ function module.init()
                         return getTargetPart(target.Character)
                     end
                 elseif key == "UnitRay" then
-                    local origin = Camera.CFrame.Position
+                    local origin = camera.CFrame.Position
                     local direction = (targetPos - origin).Unit
                     return Ray.new(origin, direction)
                 elseif key == "X" or key == "Y" then
-                    local screenPos = Camera:WorldToViewportPoint(targetPos)
+                    local screenPos = camera:WorldToViewportPoint(targetPos)
                     return key == "X" and screenPos.X or screenPos.Y
                 end
             end
@@ -126,7 +195,8 @@ function module.init()
     oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
         local method = getnamecallmethod()
         local args = {...}
-        
+        checkcaller() then return oldNamecall(self, ...) end
+        if 
         if not silentAimEnabled then
             return oldNamecall(self, ...)
         end
@@ -152,11 +222,12 @@ function module.init()
         end
         
         -- Camera:WorldToScreenPoint / ViewportPointToRay hook
-        if self == Camera then
+        local camera = getCamera()
+        if camera and self == camera then
             if method == "ViewportPointToRay" or method == "ScreenPointToRay" then
                 local targetPos = getSilentAimTarget()
                 if targetPos then
-                    local origin = Camera.CFrame.Position
+                    local origin = camera.CFrame.Position
                     local direction = (targetPos - origin).Unit
                     return Ray.new(origin, direction)
                 end
@@ -172,6 +243,27 @@ end
 function module.toggleSilentAim(state)
     silentAimEnabled = state and true or false
     print("[SilentAim] Toggled:", silentAimEnabled)
+end
+
+function module.toggleFOVCircle(state)
+    fovCircleEnabled = state and true or false
+    if fovCircleEnabled then
+        if ensureFOVGui() then
+            fovFrame.Visible = true
+            if not fovConnection then
+                fovConnection = RunService.RenderStepped:Connect(updateFOVCircle)
+            end
+        end
+    else
+        if fovConnection then
+            fovConnection:Disconnect()
+            fovConnection = nil
+        end
+        if fovFrame then
+            fovFrame.Visible = false
+        end
+    end
+    print("[SilentAim] FOVCircle:", fovCircleEnabled)
 end
 
 function module.setFOV(value)
@@ -209,6 +301,16 @@ end
 
 function module.destroy()
     silentAimEnabled = false
+    
+    if fovConnection then
+        fovConnection:Disconnect()
+        fovConnection = nil
+    end
+    if fovGui then
+        fovGui:Destroy()
+        fovGui = nil
+    end
+    
     print("[SilentAim] Module destroyed")
 end
 

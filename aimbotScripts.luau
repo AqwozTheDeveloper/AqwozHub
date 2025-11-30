@@ -43,11 +43,18 @@ local maxAngleDeg = 180
 local function getTargetPart(character)
     local part = character:FindFirstChild(targetPartName)
     if part then return part end
+    
+    -- R6 Compatibility: If we wanted UpperTorso but it's missing, try Torso
+    if targetPartName == "UpperTorso" then
+        local torso = character:FindFirstChild("Torso")
+        if torso then return torso end
+    end
+
     if targetPartName ~= "Head" then
         local fallback = character:FindFirstChild("Head")
         if fallback then return fallback end
     end
-    return character:FindFirstChild("UpperTorso") or character:FindFirstChild("HumanoidRootPart")
+    return character:FindFirstChild("UpperTorso") or character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
 end
 
 -- En yakın oyuncuyu bul
@@ -132,15 +139,21 @@ end
 -- Mouse'u hedefe taşı
 local function moveMouse(targetScreenPos)
     local Camera = getCamera()
+    if not Camera then return end
     local viewportSize = Camera.ViewportSize
     local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
     local guiInset = GuiService:GetGuiInset()
     
     local deltaX = targetScreenPos.X - center.X
     local deltaY = targetScreenPos.Y - center.Y - guiInset.Y
+
+    -- Cursor hareketi için minimum hız uygula
+    local cursorFactor = math.clamp(aimbotSmoothing, 0.01, 1)
     
     if mousemoverel then
-        mousemoverel(deltaX * aimbotSmoothing, deltaY * aimbotSmoothing)
+        pcall(function()
+            mousemoverel(deltaX * cursorFactor, deltaY * cursorFactor)
+        end)
     end
 end
 
@@ -150,6 +163,7 @@ local function aimbotLoop()
     if aimHoldEnabled and not aimHoldActive then return end
 
     local Camera = getCamera()
+    if not Camera then return end
     local target = getClosestPlayer()
 
     if target and target.Character then
@@ -169,7 +183,7 @@ local function aimbotLoop()
             end
             
             -- Kamera + Cursor lock
-            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, factor)
+            -- Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, factor) -- Removed to prevent fighting with mousemoverel
             
             -- Mouse'u da hedefe taşı
             local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
@@ -235,8 +249,12 @@ end
 
 function module.setSmoothing(value)
     local v = tonumber(value) or 1
-    aimbotSmoothing = math.clamp(v / 10, 0.05, 1)
-    print("[Aimbot] Smoothing set to:", value)
+    -- Map 1-10 to roughly 0.05 - 0.8
+    -- 1 -> 0.05 (Very smooth)
+    -- 5 -> 0.25 (Medium)
+    -- 10 -> 0.8 (Fast)
+    aimbotSmoothing = math.clamp(v * 0.08, 0.05, 1)
+    print("[Aimbot] Smoothing set to:", value, "(Internal:", aimbotSmoothing, ")")
 end
 
 function module.toggleTeamCheck(state)
@@ -291,6 +309,13 @@ local function ensureFOVGui()
     if fovGui and fovFrame then return true end
     local pg = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui")
     if not pg then return false end
+    
+    -- Cleanup existing GUI
+    local oldGui = pg:FindFirstChild("AqwozHubFOV")
+    if oldGui then
+        oldGui:Destroy()
+    end
+
     fovGui = Instance.new("ScreenGui")
     fovGui.Name = "AqwozHubFOV"
     fovGui.IgnoreGuiInset = true
@@ -331,7 +356,7 @@ local function updateFOVCircle()
     if not fovGui or not fovFrame then return end
     local mouse = UserInputService:GetMouseLocation()
     fovFrame.Size = UDim2.fromOffset(aimbotFOV * 2, aimbotFOV * 2)
-    fovFrame.Position = UDim2.fromOffset(mouse.X - aimbotFOV, mouse.Y - aimbotFOV)
+    fovFrame.Position = UDim2.fromOffset(mouse.X, mouse.Y)
     if fovStroke then
         if currentTarget then
             fovStroke.Color = fovLockedColor
@@ -345,6 +370,9 @@ local function updatePointerDot()
     if not pointerLockEnabled then return end
     if not pointerFrame or not fovGui then return end
     local pos
+    local Camera = getCamera()
+    if not Camera then return end
+
     if currentTarget and currentTarget.Character then
         local part = getTargetPart(currentTarget.Character)
         if part then

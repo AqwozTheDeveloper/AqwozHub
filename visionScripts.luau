@@ -15,6 +15,7 @@ print("[Vision] Module loaded")
 
 -- ESP oluşturma fonksiyonu
 local function createESP(character)
+    if not character then return end
     local player = Players:GetPlayerFromCharacter(character)
     if not player then return end
     
@@ -39,10 +40,9 @@ local function createESP(character)
 
     -- Eski ESP'leri temizle
     if espFolder then
-        for _, child in pairs(espFolder:GetChildren()) do
-            if child.Name:find(character.Parent.Name) then
-                child:Destroy()
-            end
+        local oldBox = espFolder:FindFirstChild(player.Name .. "_Box")
+        if oldBox then
+            oldBox:Destroy()
         end
     end
 
@@ -53,7 +53,7 @@ local function createESP(character)
 
     -- BoxHandleAdornment
     local box = Instance.new("BoxHandleAdornment")
-    box.Name = character.Parent.Name .. "_Box"
+    box.Name = player.Name .. "_Box"
     box.Size = Vector3.new(4, 6, 4)
     box.Color3 = espColor
     box.Transparency = 0.5
@@ -63,7 +63,7 @@ local function createESP(character)
     box.Visible = true
     box.Parent = espFolder
 
-    print("[Vision] Box created for:", character.Parent.Name)
+    print("[Vision] Box created for:", player.Name)
 
     -- Highlight ekle
     local highlight = Instance.new("Highlight")
@@ -76,6 +76,15 @@ local function createESP(character)
     highlight.Parent = character
 
     print("[Vision] Highlight created for:", character.Parent.Name)
+    
+    -- Cleanup on Death
+    local humanoid = character:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.Died:Connect(function()
+            if box then box:Destroy() end
+            if highlight then highlight:Destroy() end
+        end)
+    end
 end
 
 -- Oyuncu için ESP setup
@@ -107,6 +116,12 @@ end
 -- MODULE API
 function module.init()
     print("[Vision] Initializing module...")
+
+    -- Cleanup existing folder if any
+    local oldFolder = workspace:FindFirstChild("VisionESP")
+    if oldFolder then
+        oldFolder:Destroy()
+    end
 
     espFolder = Instance.new("Folder")
     espFolder.Name = "VisionESP"
