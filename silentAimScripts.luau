@@ -26,8 +26,11 @@ local fovColor = Color3.fromRGB(255, 0, 0) -- Red for Silent Aim to distinguish 
 
 local function ensureFOVGui()
     if fovGui and fovFrame then return true end
-    local pg = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui")
-    if not pg then return false end
+    local pg = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 5)
+    if not pg then 
+        warn("[SilentAim] PlayerGui not found, retrying on next toggle")
+        return false 
+    end
     
     -- Cleanup
     local old = pg:FindFirstChild("AqwozHubSilentFOV")
@@ -65,7 +68,9 @@ local function updateFOVCircle()
     
     local mouse = UserInputService:GetMouseLocation()
     fovFrame.Size = UDim2.fromOffset(silentAimFOV * 2, silentAimFOV * 2)
-    -- With AnchorPoint 0.5,0.5, we just set position to mouse coords
+    -- Set AnchorPoint to center the frame on mouse coordinates
+    fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    -- Position the frame at mouse coordinates
     fovFrame.Position = UDim2.fromOffset(mouse.X, mouse.Y)
 end
 
@@ -181,8 +186,12 @@ function module.init()
                     local direction = (targetPos - origin).Unit
                     return Ray.new(origin, direction)
                 elseif key == "X" or key == "Y" then
-                    local screenPos = camera:WorldToViewportPoint(targetPos)
-                    return key == "X" and screenPos.X or screenPos.Y
+                    local success, screenPos = pcall(function()
+                        return camera:WorldToViewportPoint(targetPos)
+                    end)
+                    if success then
+                        return key == "X" and screenPos.X or screenPos.Y
+                    end
                 end
             end
         end
@@ -200,23 +209,30 @@ function module.init()
         if not silentAimEnabled then
             return oldNamecall(self, ...)
         
-        if 
         -- Workspace Raycast hook
         if self == workspace then
             if method == "Raycast" then
                 local targetPos = getSilentAimTarget()
                 if targetPos and typeof(args[1]) == "Vector3" and typeof(args[2]) == "Vector3" then
                     local origin = args[1]
-                    local newDirection = (targetPos - origin).Unit * args[2].Magnitude
-                    return oldNamecall(self, origin, newDirection, args[3])
+                    local success, newDirection = pcall(function()
+                        return (targetPos - origin).Unit * args[2].Magnitude
+                    end)
+                    if success then
+                        return oldNamecall(self, origin, newDirection, args[3])
+                    end
                 end
             elseif method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRayWithWhitelist" then
                 local targetPos = getSilentAimTarget()
                 if targetPos and typeof(args[1]) == "Ray" then
                     local ray = args[1]
-                    local newDir = (targetPos - ray.Origin).Unit * ray.Direction.Magnitude
-                    args[1] = Ray.new(ray.Origin, newDir)
-                    return oldNamecall(self, unpack(args))
+                    local success, newDir = pcall(function()
+                        return (targetPos - ray.Origin).Unit * ray.Direction.Magnitude
+                    end)
+                    if success then
+                        args[1] = Ray.new(ray.Origin, newDir)
+                        return oldNamecall(self, unpack(args))
+                    end
                 end
             end
         end
@@ -228,8 +244,12 @@ function module.init()
                 local targetPos = getSilentAimTarget()
                 if targetPos then
                     local origin = camera.CFrame.Position
-                    local direction = (targetPos - origin).Unit
-                    return Ray.new(origin, direction)
+                    local success, direction = pcall(function()
+                        return (targetPos - origin).Unit
+                    end)
+                    if success then
+                        return Ray.new(origin, direction)
+                    end
                 end
             end
         end
@@ -240,9 +260,26 @@ function module.init()
     print("[SilentAim] Hooks installed successfully")
 end
 
+function module.updateSettings()
+    -- Update settings individually to match the function signature in main.luau
+    if _G.updateSetting then
+        _G.updateSetting("SilentAim", "SilentAimToggle", silentAimEnabled)
+        _G.updateSetting("SilentAim", "FOV", silentAimFOV)
+        _G.updateSetting("SilentAim", "MaxDistance", silentAimMaxDistance)
+        _G.updateSetting("SilentAim", "TeamCheck", teamCheckEnabled)
+        _G.updateSetting("SilentAim", "TargetPart", targetPartName)
+        _G.updateSetting("SilentAim", "MaxAngle", maxAngleDeg)
+        _G.updateSetting("SilentAim", "FOVCircle", fovCircleEnabled)
+        print("[SilentAim] Settings updated to profile")
+    else
+        warn("[SilentAim] Could not find settings update function")
+    end
+end
+
 function module.toggleSilentAim(state)
     silentAimEnabled = state and true or false
     print("[SilentAim] Toggled:", silentAimEnabled)
+    module.updateSettings()
 end
 
 function module.toggleFOVCircle(state)
@@ -264,16 +301,19 @@ function module.toggleFOVCircle(state)
         end
     end
     print("[SilentAim] FOVCircle:", fovCircleEnabled)
+    module.updateSettings()
 end
 
 function module.setFOV(value)
     silentAimFOV = math.max(1, tonumber(value) or silentAimFOV)
     print("[SilentAim] FOV set to:", silentAimFOV)
+    module.updateSettings()
 end
 
 function module.toggleTeamCheck(state)
     teamCheckEnabled = state and true or false
     print("[SilentAim] TeamCheck:", teamCheckEnabled)
+    module.updateSettings()
 end
 
 function module.setTargetPart(name)
@@ -285,18 +325,21 @@ function module.setTargetPart(name)
         targetPartName = name
     end
     print("[SilentAim] TargetPart:", targetPartName)
+    module.updateSettings()
 end
 
 function module.setMaxAngle(deg)
     local v = tonumber(deg) or maxAngleDeg
     maxAngleDeg = math.clamp(v, 5, 180)
     print("[SilentAim] MaxAngle:", maxAngleDeg)
+    module.updateSettings()
 end
 
 function module.setMaxDistance(value)
     local v = tonumber(value) or 0
     silentAimMaxDistance = math.max(0, v)
     print("[SilentAim] MaxDistance:", silentAimMaxDistance)
+    module.updateSettings()
 end
 
 function module.destroy()
