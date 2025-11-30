@@ -298,22 +298,26 @@ function module.init()
     print("[Aimbot] Module initialized")
     if not inputBeganConn then
         inputBeganConn = UserInputService.InputBegan:Connect(function(input, gpe)
-            if gpe then return end
-            if input.UserInputType == Enum.UserInputType.MouseButton2 then
-                aimHoldActive = true
-            elseif input.KeyCode == toggleKeyCode then
-                if toggleKeyEnabled then
-                    module.toggleAimbot(not aimbotEnabled)
+            task.spawn(function()
+                if gpe then return end
+                if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                    aimHoldActive = true
+                elseif input.KeyCode == toggleKeyCode then
+                    if toggleKeyEnabled then
+                        module.toggleAimbot(not aimbotEnabled)
+                    end
                 end
-            end
+            end)
         end)
     end
     if not inputEndedConn then
         inputEndedConn = UserInputService.InputEnded:Connect(function(input, gpe)
-            if gpe then return end
-            if input.UserInputType == Enum.UserInputType.MouseButton2 then
-                aimHoldActive = false
-            end
+            task.spawn(function()
+                if gpe then return end
+                if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                    aimHoldActive = false
+                end
+            end)
         end)
     end
 end
@@ -428,7 +432,9 @@ local function ensureFOVGui()
     fovGui.Name = "AqwozHubFOV"
     fovGui.IgnoreGuiInset = true
     fovGui.ResetOnSpawn = false
+    fovGui.DisplayOrder = 998 -- Just below Silent Aim FOV
     fovGui.Parent = pg
+    
     fovFrame = Instance.new("Frame")
     fovFrame.Name = "FOVCircle"
     fovFrame.BackgroundTransparency = 1
@@ -437,14 +443,17 @@ local function ensureFOVGui()
     fovFrame.Size = UDim2.fromOffset(aimbotFOV * 2, aimbotFOV * 2)
     fovFrame.ZIndex = 100
     fovFrame.Parent = fovGui
+    
     fovStroke = Instance.new("UIStroke")
     fovStroke.Thickness = 2
     fovStroke.Transparency = 0.3
     fovStroke.Color = fovDefaultColor
     fovStroke.Parent = fovFrame
+    
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(1, 0)
     corner.Parent = fovFrame
+    
     pointerFrame = Instance.new("Frame")
     pointerFrame.Name = "PointerDot"
     pointerFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -455,6 +464,7 @@ local function ensureFOVGui()
     pointerFrame.ZIndex = 101
     pointerFrame.Visible = false
     pointerFrame.Parent = fovGui
+    
     local pcorner = Instance.new("UICorner")
     pcorner.CornerRadius = UDim.new(1, 0)
     pcorner.Parent = pointerFrame
@@ -467,12 +477,15 @@ local function updateFOVCircle()
     
     local Camera = getCamera()
     if not Camera then return end
+    
     local viewport = Camera.ViewportSize
-    local center = Vector2.new(viewport.X / 2, viewport.Y / 2)
     local guiInset = GuiService:GetGuiInset()
     
+    -- Center of viewport + GuiInset = Center of Screen (Crosshair)
+    local center = Vector2.new(viewport.X / 2, (viewport.Y / 2) + guiInset.Y)
+    
     fovFrame.Size = UDim2.fromOffset(aimbotFOV * 2, aimbotFOV * 2)
-    fovFrame.Position = UDim2.fromOffset(center.X, center.Y + guiInset.Y)
+    fovFrame.Position = UDim2.fromOffset(center.X, center.Y)
     
     if fovStroke then
         if currentTarget then
