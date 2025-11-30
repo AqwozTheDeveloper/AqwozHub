@@ -136,12 +136,16 @@ local function getClosestPlayer()
     return closestPlayer
 end
 
+-- Check if any mouse move function is available
+local function hasMouseMoveSupport()
+    return mousemoverel or (Input and Input.MouseMove) or mouse_move
+end
+
 -- Mouse'u hedefe taşı
 local function moveMouse(targetScreenPos)
     local Camera = getCamera()
     if not Camera then 
-        print("[Aimbot Debug] moveMouse: Camera not found")
-        return 
+        return false
     end
     local viewportSize = Camera.ViewportSize
     local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
@@ -153,50 +157,43 @@ local function moveMouse(targetScreenPos)
     -- Cursor hareketi için minimum hız uygula
     local cursorFactor = math.clamp(aimbotSmoothing, 0.01, 1)
     
-    print("[Aimbot Debug] moveMouse: deltaX=", deltaX, " deltaY=", deltaY, " factor=", cursorFactor)
-    
     -- Try mousemoverel first (most executors)
     if mousemoverel then
-        local success, err = pcall(function()
+        local success = pcall(function()
             mousemoverel(deltaX * cursorFactor, deltaY * cursorFactor)
         end)
-        if success then
-            print("[Aimbot Debug] mousemoverel succeeded")
-            return
-        else
-            print("[Aimbot Debug] mousemoverel failed:", err)
-        end
-    else
-        print("[Aimbot Debug] mousemoverel not available")
+        if success then return true end
     end
     
     -- Fallback: Try Input.MouseMove if available
     if Input and Input.MouseMove then
-        local success, err = pcall(function()
+        local success = pcall(function()
             Input.MouseMove(deltaX * cursorFactor, deltaY * cursorFactor)
         end)
-        if success then
-            print("[Aimbot Debug] Input.MouseMove succeeded")
-            return
-        else
-            print("[Aimbot Debug] Input.MouseMove failed:", err)
-        end
+        if success then return true end
     end
     
-    -- Fallback: Try mouse1press/mouse1release style movement
+    -- Fallback: Try mouse_move
     if mouse_move then
-        local success, err = pcall(function()
+        local success = pcall(function()
             mouse_move(deltaX * cursorFactor, deltaY * cursorFactor)
         end)
-        if success then
-            print("[Aimbot Debug] mouse_move succeeded")
-            return
-        else
-            print("[Aimbot Debug] mouse_move failed:", err)
-        end
+        if success then return true end
     end
     
-    warn("[Aimbot] No mouse movement function available! Aimbot requires executor support.")
+    return false
+end
+
+-- Camera-based aiming (works without executor mouse functions)
+local function aimAtTarget(targetPart)
+    local Camera = getCamera()
+    if not Camera or not targetPart then return end
+    
+    local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+    local factor = aimbotSmoothing
+    
+    -- Smoothly lerp camera to target
+    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, factor)
 end
 
 -- Aimbot loop (Smooth)
@@ -206,62 +203,52 @@ local function aimbotLoop()
     end
     
     -- If hold-to-aim is enabled, only aim when holding RMB
-    if aimHoldEnabled then
-        if not aimHoldActive then
-            return
-        end
-        print("[Aimbot Debug] Hold-to-aim active")
+    if aimHoldEnabled and not aimHoldActive then
+        return
     end
 
     local Camera = getCamera()
     if not Camera then 
-        print("[Aimbot Debug] Camera not found")
         return 
     end
+    
     local target = getClosestPlayer()
 
     if target and target.Character then
-        print("[Aimbot Debug] Target found: ", target.Name)
         local part = getTargetPart(target.Character)
 
         if part then
-            print("[Aimbot Debug] Target part: ", part.Name)
-            -- Kamerayı hedefin kafasına yönlendir
+            -- Check angle to target
             local toTarget = (part.Position - Camera.CFrame.Position).Unit
             local angle = math.deg(math.acos(math.clamp(Camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
-            print("[Aimbot Debug] Angle to target: ", angle, " Max allowed: ", maxAngleDeg)
+            
             if angle > maxAngleDeg then 
-                print("[Aimbot Debug] Angle exceeds max, not locking")
+                currentTarget = nil
                 return 
             end
             
-            local targetCFrame = CFrame.new(Camera.CFrame.Position, part.Position)
-            local factor = aimbotSmoothing
+            -- Apply dynamic smoothing if enabled
             if dynamicSmoothingEnabled and maxAngleDeg > 0 then
                 local ratio = math.clamp(angle / maxAngleDeg, 0.2, 1)
-                factor = math.clamp(aimbotSmoothing * ratio, 0.01, 1)
-                print("[Aimbot Debug] Dynamic smoothing factor: ", factor)
+                aimbotSmoothing = math.clamp(aimbotSmoothing * ratio, 0.01, 1)
             end
             
-            -- Kamera + Cursor lock
-            -- Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, factor) -- Removed to prevent fighting with mousemoverel
-            
-            -- Mouse'u da hedefe taşı
+            -- Try mouse movement first, fallback to camera aim
             local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
             if onScreen then
-                print("[Aimbot Debug] Target on screen, moving mouse to: ", screenPos.X, screenPos.Y)
-                moveMouse(Vector2.new(screenPos.X, screenPos.Y))
-            else
-                print("[Aimbot Debug] Target not on screen")
+                local mouseMoved = moveMouse(Vector2.new(screenPos.X, screenPos.Y))
+                
+                -- If mouse move failed, use camera-based aiming
+                if not mouseMoved then
+                    aimAtTarget(part)
+                end
             end
             
             currentTarget = target
         else
-            print("[Aimbot Debug] No valid target part found")
             currentTarget = nil
         end
     else
-        print("[Aimbot Debug] No target found")
         currentTarget = nil
     end
 end
