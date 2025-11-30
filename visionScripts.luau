@@ -7,10 +7,12 @@ local module = {}
 local espFolder = nil
 local espEnabled = false
 local teamCheckEnabled = false
+local showHealthEnabled = true -- Show health bars
 local characterConnections = {}
 local espColor = Color3.fromRGB(0, 255, 100)
 local LocalPlayer = Players.LocalPlayer
 local debugMode = false
+local healthConnections = {}
 
 -- Debug logging function
 local function debugLog(...)
@@ -85,12 +87,117 @@ local function createESP(character)
 
     debugLog("Highlight created for:", player.Name)
     
-    -- Cleanup on Death
+    -- Health Bar & Name Display
     local humanoid = character:FindFirstChild("Humanoid")
+    local head = character:FindFirstChild("Head")
+    
+    if head and showHealthEnabled then
+        -- Remove old billboard if exists
+        local oldBillboard = head:FindFirstChild("ESPBillboard")
+        if oldBillboard then oldBillboard:Destroy() end
+        
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "ESPBillboard"
+        billboard.Adornee = head
+        billboard.Size = UDim2.new(0, 100, 0, 40)
+        billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+        billboard.AlwaysOnTop = true
+        billboard.Parent = head
+        
+        -- Player Name
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Name = "NameLabel"
+        nameLabel.Size = UDim2.new(1, 0, 0.4, 0)
+        nameLabel.Position = UDim2.new(0, 0, 0, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = player.Name
+        nameLabel.TextColor3 = espColor
+        nameLabel.TextStrokeTransparency = 0.5
+        nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+        nameLabel.Font = Enum.Font.GothamBold
+        nameLabel.TextScaled = true
+        nameLabel.Parent = billboard
+        
+        -- Health Bar Background
+        local healthBg = Instance.new("Frame")
+        healthBg.Name = "HealthBg"
+        healthBg.Size = UDim2.new(0.8, 0, 0.15, 0)
+        healthBg.Position = UDim2.new(0.1, 0, 0.45, 0)
+        healthBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        healthBg.BorderSizePixel = 0
+        healthBg.Parent = billboard
+        
+        local healthBgCorner = Instance.new("UICorner")
+        healthBgCorner.CornerRadius = UDim.new(0, 3)
+        healthBgCorner.Parent = healthBg
+        
+        -- Health Bar Fill
+        local healthBar = Instance.new("Frame")
+        healthBar.Name = "HealthBar"
+        healthBar.Size = UDim2.new(1, 0, 1, 0)
+        healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        healthBar.BorderSizePixel = 0
+        healthBar.Parent = healthBg
+        
+        local healthBarCorner = Instance.new("UICorner")
+        healthBarCorner.CornerRadius = UDim.new(0, 3)
+        healthBarCorner.Parent = healthBar
+        
+        -- Health Text
+        local healthText = Instance.new("TextLabel")
+        healthText.Name = "HealthText"
+        healthText.Size = UDim2.new(1, 0, 0.4, 0)
+        healthText.Position = UDim2.new(0, 0, 0.6, 0)
+        healthText.BackgroundTransparency = 1
+        healthText.Text = "100/100"
+        healthText.TextColor3 = Color3.new(1, 1, 1)
+        healthText.TextStrokeTransparency = 0.5
+        healthText.TextStrokeColor3 = Color3.new(0, 0, 0)
+        healthText.Font = Enum.Font.GothamBold
+        healthText.TextScaled = true
+        healthText.Parent = billboard
+        
+        -- Update health bar function
+        local function updateHealth()
+            if not humanoid or not healthBar or not healthText then return end
+            local health = humanoid.Health
+            local maxHealth = humanoid.MaxHealth
+            local percent = math.clamp(health / maxHealth, 0, 1)
+            
+            healthBar.Size = UDim2.new(percent, 0, 1, 0)
+            healthText.Text = math.floor(health) .. "/" .. math.floor(maxHealth)
+            
+            -- Color based on health (green -> yellow -> red)
+            if percent > 0.5 then
+                healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+            elseif percent > 0.25 then
+                healthBar.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+            else
+                healthBar.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+            end
+        end
+        
+        -- Initial update
+        updateHealth()
+        
+        -- Connect to health changes
+        if humanoid then
+            local conn = humanoid:GetPropertyChangedSignal("Health"):Connect(updateHealth)
+            healthConnections[player] = conn
+        end
+        
+        debugLog("Health bar created for:", player.Name)
+    end
+    
+    -- Cleanup on Death
     if humanoid then
         humanoid.Died:Connect(function()
             if box then box:Destroy() end
             if highlight then highlight:Destroy() end
+            if healthConnections[player] then
+                healthConnections[player]:Disconnect()
+                healthConnections[player] = nil
+            end
         end)
     end
 end
@@ -204,6 +311,11 @@ function module.destroy()
         conn:Disconnect()
     end
     characterConnections = {}
+    
+    for plr, conn in pairs(healthConnections) do
+        conn:Disconnect()
+    end
+    healthConnections = {}
 
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr.Character then
@@ -211,9 +323,27 @@ function module.destroy()
             if highlight then
                 highlight:Destroy()
             end
+            local head = plr.Character:FindFirstChild("Head")
+            if head then
+                local billboard = head:FindFirstChild("ESPBillboard")
+                if billboard then
+                    billboard:Destroy()
+                end
+            end
         end
     end
     print("[Vision] Module destroyed")
+end
+
+function module.toggleShowHealth(state)
+    showHealthEnabled = state and true or false
+    print("[Vision] ShowHealth:", showHealthEnabled)
+    
+    -- Refresh ESP to apply changes
+    if espEnabled then
+        module.toggleESP(false)
+        module.toggleESP(true)
+    end
 end
 
 function module.toggleTeamCheck(state)

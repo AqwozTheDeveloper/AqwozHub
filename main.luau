@@ -367,6 +367,16 @@ VisionTab:CreateToggle({
    end,
 })
 
+VisionTab:CreateToggle({
+   Name = "Show Health",
+   CurrentValue = settings.Vision.ShowHealth ~= false, -- Default true
+   Flag = "ShowHealth",
+   Callback = function(Value)
+        updateSetting("Vision", "ShowHealth", Value)
+        visionScripts.toggleShowHealth(Value)
+   end,
+})
+
 VisionTab:CreateSection("ESP Appearance")
 
 VisionTab:CreateColorPicker({
