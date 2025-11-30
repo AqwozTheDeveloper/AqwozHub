@@ -208,10 +208,6 @@ end
 -- Get today's valid key
 local TODAYS_KEY = generateKey()
 
--- [IMPORTANT] The Webhook code has been moved to 'KeyGen.luau'
--- Run 'KeyGen.luau' privately to get the key sent to your Discord.
--- This file is for PLAYERS, so it should not contain your Webhook.
-
 -- Valid keys (includes generated key + permanent VIP keys)
 local VALID_KEYS = {
     TODAYS_KEY,           -- Auto-generated rotating key
