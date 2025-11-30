@@ -83,8 +83,11 @@ local function updateFOVCircle()
     if not camera then return end
     
     local viewportSize = camera.ViewportSize
+    local guiInset = game:GetService("GuiService"):GetGuiInset()
+    
+    -- Center of viewport + GuiInset offset = Center of Screen (Crosshair)
     local centerX = viewportSize.X / 2
-    local centerY = viewportSize.Y / 2
+    local centerY = (viewportSize.Y / 2) + guiInset.Y
     
     fovFrame.Size = UDim2.fromOffset(silentAimFOV * 2, silentAimFOV * 2)
     fovFrame.Position = UDim2.fromOffset(centerX, centerY)
@@ -116,7 +119,8 @@ local function getClosestPlayer()
     
     -- Use screen center (crosshair position) for Silent Aim FOV check
     local viewportSize = camera.ViewportSize
-    local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+    local guiInset = game:GetService("GuiService"):GetGuiInset()
+    local screenCenter = Vector2.new(viewportSize.X / 2, (viewportSize.Y / 2) + guiInset.Y)
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -134,7 +138,9 @@ local function getClosestPlayer()
                 -- For silent aim, check if target is in front of camera (Z > 0)
                 if screenPos.Z > 0 then
                     -- Distance from screen center (crosshair) to target
-                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                    -- Adjust screenPos to match screenCenter (add GuiInset)
+                    local targetScreenPos = Vector2.new(screenPos.X, screenPos.Y + guiInset.Y)
+                    local distance = (targetScreenPos - screenCenter).Magnitude
 
                     -- Max distance check (world distance)
                     if silentAimMaxDistance and silentAimMaxDistance > 0 then

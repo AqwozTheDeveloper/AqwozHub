@@ -156,9 +156,18 @@ local function moveCursorToTarget(screenPos, factor)
     -- Get current mouse position (where cursor actually is)
     local mousePos = UserInputService:GetMouseLocation()
     
+    -- Get GUI Inset (top bar offset)
+    local guiInset = GuiService:GetGuiInset()
+    
     -- Calculate delta from current mouse position to target
-    local deltaX = (screenPos.X - mousePos.X) * factor
-    local deltaY = (screenPos.Y - mousePos.Y) * factor
+    -- screenPos is relative to Viewport (excludes top bar)
+    -- mousePos is relative to Screen (includes top bar)
+    -- So we add guiInset.Y to screenPos.Y to make them comparable
+    local targetScreenX = screenPos.X
+    local targetScreenY = screenPos.Y + guiInset.Y
+    
+    local deltaX = (targetScreenX - mousePos.X) * factor
+    local deltaY = (targetScreenY - mousePos.Y) * factor
     
     -- Round to integers (required for Xeno and some other executors)
     deltaX = math.floor(deltaX + 0.5)
