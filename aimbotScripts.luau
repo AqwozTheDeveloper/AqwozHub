@@ -17,6 +17,7 @@ local aimbotConnection = nil
 local aimbotSmoothing = 0.1
 local dynamicSmoothingEnabled = false
 local aimbotMaxDistance = 0
+local predictionStrength = 0.135 -- Prediction factor
 local currentTarget = nil
 local teamCheckEnabled = false
 local wallCheckEnabled = false
@@ -224,8 +225,11 @@ local function aimbotLoop()
         if part then
             debugLog("Target:", target.Name, "Part:", part.Name)
             
+            -- Apply Prediction
+            local targetPos = part.Position + (part.Velocity * predictionStrength)
+            
             -- Check angle to target
-            local toTarget = (part.Position - Camera.CFrame.Position).Unit
+            local toTarget = (targetPos - Camera.CFrame.Position).Unit
             local angle = math.deg(math.acos(math.clamp(Camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
             
             debugLog("Angle:", math.floor(angle), "MaxAngle:", maxAngleDeg)
@@ -245,7 +249,7 @@ local function aimbotLoop()
             end
             
             -- Get target screen position
-            local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+            local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
             
             if onScreen then
                 -- Try to move cursor to target (works if executor supports it)
@@ -254,7 +258,7 @@ local function aimbotLoop()
                 -- If cursor move failed, use camera-based aiming as fallback
                 if not cursorMoved then
                     debugLog("Using camera-based aiming fallback")
-                    local targetCFrame = CFrame.new(Camera.CFrame.Position, part.Position)
+                    local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
                     Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, factor)
                 end
             else

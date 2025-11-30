@@ -148,7 +148,10 @@ local function getClosestPlayer()
     return closestPlayer
 end
 
--- Get target position for silent aim
+-- Prediction settings
+local PREDICTION_STRENGTH = 0.135 -- Adjust for Rivals (0.13 - 0.15 usually good)
+
+-- Get target position for silent aim (with Prediction)
 local function getSilentAimTarget()
     if not silentAimEnabled then return nil end
     
@@ -157,7 +160,12 @@ local function getSilentAimTarget()
         local part = getTargetPart(target.Character)
         if part then
             debugLog("Target found:", target.Name, "Part:", part.Name)
-            return part.Position
+            
+            -- Calculate Prediction
+            local velocity = part.Velocity
+            local prediction = velocity * PREDICTION_STRENGTH
+            
+            return part.Position + prediction
         end
     end
     return nil
