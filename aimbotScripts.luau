@@ -543,6 +543,9 @@ end
 function module.toggleDebugMode(state)
     debugMode = state and true or false
     print("[Aimbot] DebugMode:", debugMode)
+    if debugMode then
+        debugLog("Debug logs enabled")
+    end
 end
 
 function module.getStats()
