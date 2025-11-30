@@ -174,14 +174,21 @@ local KEY_SYSTEM_ENABLED = true
 -- Valid keys (users can use any of these)
 local VALID_KEYS = {
     "AqwozHub2024",      -- Main key
-    "AqwozVIP",          -- VIP key
+    "AqwozVIP",          -- VIP key  
     "AqwozFree",         -- Free key
 }
 
--- Linkvertise/Ad link settings
-local KEY_LINK = "https://linkvertise.com/1234567/aqwozhub-key" -- Replace with your Linkvertise link
-local KEY_FROM_LINK = false -- Set to true if key is fetched from a URL (like Pastebin)
-local KEY_URL = "https://pastebin.com/raw/YOURKEY" -- URL that returns the key (if KEY_FROM_LINK is true)
+-- Lootlabs settings
+-- To set up Lootlabs:
+-- 1. Go to https://lootlabs.gg and create an account
+-- 2. Create a new "Content Locker" 
+-- 3. Set the unlock content to your key (e.g., "AqwozHub2024")
+-- 4. Copy the Lootlabs link and paste it below
+local KEY_LINK = "https://lootlabs.gg/YOUR_LOOTLABS_LINK" -- Replace with your Lootlabs link
+
+-- Alternative: Fetch key from URL (Pastebin, etc.)
+local KEY_FROM_LINK = false -- Set to true to fetch key from URL instead of hardcoded keys
+local KEY_URL = "https://pastebin.com/raw/YOURKEY" -- URL that returns the key
 
 -- Discord settings
 local DISCORD_ENABLED = true
@@ -259,12 +266,12 @@ MainTab:CreateButton({
 })
 
 MainTab:CreateButton({
-    Name = "Get Key (Linkvertise)",
+    Name = "Get Key (Lootlabs)",
     Callback = function()
         setclipboard(KEY_LINK)
         Rayfield:Notify({
             Title = "Key Link",
-            Content = "Linkvertise link copied! Complete it to get your key.",
+            Content = "Lootlabs link copied! Complete it to get your key.",
             Duration = 5
         })
     end,
@@ -272,7 +279,7 @@ MainTab:CreateButton({
 
 MainTab:CreateSection("Monetization Info")
 
-MainTab:CreateParagraph({Title = "Support Us", Content = "Complete the Linkvertise to get your key. Keys are saved so you only need to do this once!"})
+MainTab:CreateParagraph({Title = "Support Us", Content = "Complete the Lootlabs link to get your key. Keys are saved so you only need to do this once!"})
 
 MainTab:CreateSection("Credits")
 
