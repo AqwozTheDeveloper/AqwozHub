@@ -204,6 +204,7 @@ local function aimbotLoop()
     
     -- If hold-to-aim is enabled, only aim when holding RMB
     if aimHoldEnabled and not aimHoldActive then
+        currentTarget = nil
         return
     end
 
@@ -227,22 +228,17 @@ local function aimbotLoop()
                 return 
             end
             
-            -- Apply dynamic smoothing if enabled
+            -- Calculate smoothing factor
+            local factor = aimbotSmoothing
             if dynamicSmoothingEnabled and maxAngleDeg > 0 then
                 local ratio = math.clamp(angle / maxAngleDeg, 0.2, 1)
-                aimbotSmoothing = math.clamp(aimbotSmoothing * ratio, 0.01, 1)
+                factor = math.clamp(factor * ratio, 0.01, 1)
             end
             
-            -- Try mouse movement first, fallback to camera aim
-            local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
-            if onScreen then
-                local mouseMoved = moveMouse(Vector2.new(screenPos.X, screenPos.Y))
-                
-                -- If mouse move failed, use camera-based aiming
-                if not mouseMoved then
-                    aimAtTarget(part)
-                end
-            end
+            -- Always use camera-based aiming (most reliable)
+            -- This works on all executors without special functions
+            local targetCFrame = CFrame.new(Camera.CFrame.Position, part.Position)
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, factor)
             
             currentTarget = target
         else
