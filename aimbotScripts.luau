@@ -153,23 +153,24 @@ local function moveCursorToTarget(screenPos, factor)
         return false 
     end
     
-    local viewportSize = Camera.ViewportSize
-    local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
-    local guiInset = GuiService:GetGuiInset()
+    -- Get current mouse position (where cursor actually is)
+    local mousePos = UserInputService:GetMouseLocation()
     
-    local deltaX = (screenPos.X - center.X) * factor
-    local deltaY = (screenPos.Y - center.Y - guiInset.Y) * factor
+    -- Calculate delta from current mouse position to target
+    local deltaX = (screenPos.X - mousePos.X) * factor
+    local deltaY = (screenPos.Y - mousePos.Y) * factor
     
     -- Round to integers (required for Xeno and some other executors)
     deltaX = math.floor(deltaX + 0.5)
     deltaY = math.floor(deltaY + 0.5)
     
-    -- Skip tiny movements
+    -- Skip tiny movements (locked on target)
     if math.abs(deltaX) < 1 and math.abs(deltaY) < 1 then
+        debugLog("Already on target")
         return true
     end
     
-    debugLog("moveCursorToTarget: deltaX=", deltaX, "deltaY=", deltaY)
+    debugLog("Delta: X=", deltaX, "Y=", deltaY, "Factor=", factor)
     
     -- Try mousemoverel (most common executor function)
     if mousemoverel then
@@ -182,7 +183,7 @@ local function moveCursorToTarget(screenPos, factor)
         end
     end
     
-    -- Try Input.MouseMove
+    -- Try Input.MouseMove (Xeno)
     if Input and Input.MouseMove then
         local success = pcall(function()
             Input.MouseMove(deltaX, deltaY)
