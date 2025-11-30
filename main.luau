@@ -20,6 +20,7 @@ local defaultSettings = {
         TargetPart = "Head",
         MaxAngle = 180,
         MaxDistance = 0,
+        Prediction = 14,
         HoldAim = false,
         FOVCircle = false,
         DynamicSmoothing = false,
@@ -298,9 +299,11 @@ local SilentAimTab = Window:CreateTab("Silent Aim", "target") -- Target for sile
 local SettingsTab = Window:CreateTab("Settings", "settings") -- Settings tab
 
 local function setFlagValue(flag, value)
-    if Rayfield.Flags and Rayfield.Flags[flag] and Rayfield.Flags[flag].Set then
-        Rayfield.Flags[flag]:Set(value)
-    end
+    pcall(function()
+        if Rayfield.Flags and Rayfield.Flags[flag] and Rayfield.Flags[flag].Set then
+            Rayfield.Flags[flag]:Set(value)
+        end
+    end)
 end
 
 -- Home Tab
@@ -487,6 +490,19 @@ CombatTab:CreateSlider({
    end,
 })
 
+CombatTab:CreateSlider({
+   Name = "Prediction",
+   Range = {0, 30},
+   Increment = 1,
+   Suffix = "%",
+   CurrentValue = (settings.Aimbot.Prediction or 14),
+   Flag = "Prediction",
+   Callback = function(Value)
+        updateSetting("Aimbot", "Prediction", Value)
+        aimbotScripts.setPrediction(Value / 100) -- Convert % to decimal
+   end,
+})
+
 CombatTab:CreateSection("Aim Assist UI")
 
 CombatTab:CreateToggle({
@@ -638,6 +654,7 @@ local function applySavedSettings()
     aimbotScripts.setTargetPart(settings.Aimbot.TargetPart)
     aimbotScripts.setMaxAngle(settings.Aimbot.MaxAngle)
     aimbotScripts.setMaxDistance(settings.Aimbot.MaxDistance)
+    aimbotScripts.setPrediction((settings.Aimbot.Prediction or 14) / 100)
     aimbotScripts.toggleTeamCheck(settings.Aimbot.TeamCheck)
     aimbotScripts.toggleWallCheck(settings.Aimbot.WallCheck)
     aimbotScripts.toggleHoldToAim(settings.Aimbot.HoldAim)
@@ -661,18 +678,6 @@ local function applySavedSettings()
     end
 end
 
--- Helper function to set Rayfield flag values
-local function setFlagValue(flag, value)
-    local success, err = pcall(function()
-        if Rayfield.Flags and Rayfield.Flags[flag] then
-            Rayfield.Flags[flag]:Set(value)
-        end
-    end)
-    if not success then
-        -- Silently fail - flag might not exist yet
-    end
-end
-
 local function syncUIWithSettings()
     local flagValues = {
         ESPToggle = settings.Vision.ESPToggle,
@@ -686,6 +691,7 @@ local function syncUIWithSettings()
         TargetPart = settings.Aimbot.TargetPart,
         MaxAngle = settings.Aimbot.MaxAngle,
         MaxDistance = settings.Aimbot.MaxDistance,
+        Prediction = settings.Aimbot.Prediction or 14,
         HoldAim = settings.Aimbot.HoldAim,
         FOVCircle = settings.Aimbot.FOVCircle,
         DynamicSmoothing = settings.Aimbot.DynamicSmoothing,

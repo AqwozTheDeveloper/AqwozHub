@@ -397,6 +397,12 @@ function module.setMaxAngle(deg)
     print("[Aimbot] MaxAngle:", maxAngleDeg)
 end
 
+function module.setPrediction(value)
+    local v = tonumber(value) or 0.135
+    predictionStrength = math.clamp(v, 0, 0.5)
+    print("[Aimbot] Prediction:", predictionStrength)
+end
+
 local function ensureFOVGui()
     if fovGui and fovFrame then return true end
     local pg = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui")
@@ -567,6 +573,7 @@ function module.getStats()
         currentTarget = currentTarget and currentTarget.Name or "None",
         fov = aimbotFOV,
         smoothing = aimbotSmoothing,
+        prediction = predictionStrength,
         targetPart = targetPartName,
         holdActive = aimHoldActive
     }
