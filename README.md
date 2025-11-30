@@ -68,7 +68,8 @@ All settings are automatically saved and persist between sessions.
 | Setting | Location | Description |
 |---------|----------|-------------|
 | Config File | `AqwozHubSettings.json` | All user preferences |
-| Key File | `AqwozHubConfig/AqwozHubKey_YYYYMMDD` | Daily key storage |
+| Key File | `AqwozHubKey.txt` | Daily key storage |
+| Date File | `AqwozHubKeyDate.txt` | Key expiration tracking |
 
 ## 🎮 Supported Executors
 

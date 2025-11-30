@@ -243,55 +243,10 @@ if setclipboard then
     setclipboard(KEY_LINK)
 end
 
--- Custom key file management for daily expiration
-local KEY_FILE = "AqwozHubKey.txt"
-local KEY_DATE_FILE = "AqwozHubKeyDate.txt"
-local savedKeyValid = false
-
--- Check if we have a saved key that's still valid
-local function checkSavedKey()
-    if not isfile or not readfile then return false end
-    
-    -- Check if key file exists
-    if not isfile(KEY_FILE) then return false end
-    
-    -- Check if date file exists and matches today
-    if isfile(KEY_DATE_FILE) then
-        local savedDate = readfile(KEY_DATE_FILE)
-        local today = os.date("%Y%m%d")
-        if savedDate ~= today then
-            -- Key expired, delete old files
-            pcall(function() delfile(KEY_FILE) end)
-            pcall(function() delfile(KEY_DATE_FILE) end)
-            return false
-        end
-    else
-        return false
-    end
-    
-    -- Read and validate the saved key
-    local savedKey = readfile(KEY_FILE)
-    for _, validKey in ipairs(VALID_KEYS) do
-        if savedKey == validKey then
-            print("[AqwozHub] Saved key is valid for today!")
-            return true
-        end
-    end
-    
-    return false
+-- Ensure config folder exists
+if makefolder and not isfolder("AqwozHubConfig") then
+    makefolder("AqwozHubConfig")
 end
-
--- Save key after successful validation
-local function saveKeyForToday(key)
-    if not writefile then return end
-    pcall(function()
-        writefile(KEY_FILE, key)
-        writefile(KEY_DATE_FILE, os.date("%Y%m%d"))
-        print("[AqwozHub] Key saved for today")
-    end)
-end
-
-savedKeyValid = checkSavedKey()
 
 -- ============================================
 -- HOW TO USE DAILY KEYS WITH WORK.INK:
@@ -313,15 +268,6 @@ savedKeyValid = checkSavedKey()
 -- ============================================
 
 -- Window
--- Skip key system if we have a valid saved key for today
-local shouldAskForKey = KEY_SYSTEM_ENABLED and not savedKeyValid
-
-if savedKeyValid then
-    print("[AqwozHub] Valid key found for today - skipping key prompt")
-else
-    print("[AqwozHub] No valid key - showing key prompt")
-end
-
 local Window = Rayfield:CreateWindow({
     Name = "Aqwoz Hub",
     LoadingTitle = "Aqwoz Hub",
@@ -336,25 +282,18 @@ local Window = Rayfield:CreateWindow({
        Invite = DISCORD_INVITE,
        RememberJoins = true
     },
-    KeySystem = shouldAskForKey,
+    KeySystem = KEY_SYSTEM_ENABLED,
     KeySettings = {
         Title = "Aqwoz Hub - Key Required",
         Subtitle = "Daily Key System",
         Note = "Link COPIED to clipboard! Paste in browser to get key.\nKey changes " .. KEY_ROTATION,
-        FileName = "AqwozHubKey",
-        SaveKey = true, -- Let Rayfield save too
+        FolderName = "AqwozHubConfig",
+        FileName = "AqwozHubKey", -- Saves as AqwozHubConfig/AqwozHubKey
+        SaveKey = true,
         GrabKeyFromSite = USE_REMOTE_KEY,
         Key = USE_REMOTE_KEY and {REMOTE_KEY_URL} or VALID_KEYS
     }
 })
-
--- If key system was shown and we got here, the key was valid - save today's key
-if shouldAskForKey then
-    -- We got past the key system, so save TODAYS_KEY (the daily key that was validated)
-    -- This works because if user entered a valid key, it must be one of VALID_KEYS
-    saveKeyForToday(TODAYS_KEY)
-    print("[AqwozHub] Key validated and saved for today")
-end
 
 -- Notification
 Rayfield:Notify({

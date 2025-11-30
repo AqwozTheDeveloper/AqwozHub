@@ -482,7 +482,8 @@ local function updateFOVCircle()
     local guiInset = GuiService:GetGuiInset()
     
     -- Center of viewport + GuiInset = Center of Screen (Crosshair)
-    local center = Vector2.new(viewport.X / 2, (viewport.Y / 2) + guiInset.Y)
+    -- Correct formula: (ViewportSize + GuiInset) / 2
+    local center = Vector2.new((viewport.X + guiInset.X) / 2, (viewport.Y + guiInset.Y) / 2)
     
     fovFrame.Size = UDim2.fromOffset(aimbotFOV * 2, aimbotFOV * 2)
     fovFrame.Position = UDim2.fromOffset(center.X, center.Y)

@@ -86,8 +86,9 @@ local function updateFOVCircle()
     local guiInset = game:GetService("GuiService"):GetGuiInset()
     
     -- Center of viewport + GuiInset offset = Center of Screen (Crosshair)
-    local centerX = viewportSize.X / 2
-    local centerY = (viewportSize.Y / 2) + guiInset.Y
+    -- Correct formula: (ViewportSize + GuiInset) / 2
+    local centerX = (viewportSize.X + guiInset.X) / 2
+    local centerY = (viewportSize.Y + guiInset.Y) / 2
     
     fovFrame.Size = UDim2.fromOffset(silentAimFOV * 2, silentAimFOV * 2)
     fovFrame.Position = UDim2.fromOffset(centerX, centerY)
@@ -120,7 +121,7 @@ local function getClosestPlayer()
     -- Use screen center (crosshair position) for Silent Aim FOV check
     local viewportSize = camera.ViewportSize
     local guiInset = game:GetService("GuiService"):GetGuiInset()
-    local screenCenter = Vector2.new(viewportSize.X / 2, (viewportSize.Y / 2) + guiInset.Y)
+    local screenCenter = Vector2.new((viewportSize.X + guiInset.X) / 2, (viewportSize.Y + guiInset.Y) / 2)
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -329,7 +330,8 @@ function module.init()
                         return screenPos.X
                     elseif key == "Y" then
                         local screenPos = camera:WorldToViewportPoint(targetPos)
-                        return screenPos.Y
+                        local guiInset = game:GetService("GuiService"):GetGuiInset()
+                        return screenPos.Y + guiInset.Y
                     end
                 end
             end
