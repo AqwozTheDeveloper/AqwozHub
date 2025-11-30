@@ -160,9 +160,18 @@ local function moveCursorToTarget(screenPos, factor)
     local deltaX = (screenPos.X - center.X) * factor
     local deltaY = (screenPos.Y - center.Y - guiInset.Y) * factor
     
-    debugLog("moveCursorToTarget: deltaX=", math.floor(deltaX), "deltaY=", math.floor(deltaY))
+    -- Round to integers (required for some executors like Xeno)
+    deltaX = math.floor(deltaX + 0.5)
+    deltaY = math.floor(deltaY + 0.5)
     
-    -- Try mousemoverel (Synapse, Script-Ware, etc.)
+    -- Skip if delta is too small
+    if math.abs(deltaX) < 1 and math.abs(deltaY) < 1 then
+        return true -- Already on target
+    end
+    
+    debugLog("moveCursorToTarget: deltaX=", deltaX, "deltaY=", deltaY)
+    
+    -- Try mousemoverel (Synapse, Xeno, Script-Ware, etc.)
     if typeof(mousemoverel) == "function" then
         local success = pcall(mousemoverel, deltaX, deltaY)
         if success then 
