@@ -1,7 +1,5 @@
 -- [[ PRIVATE ADMIN SCRIPT - DO NOT SHARE ]]
--- Run this script in your executor to generate today's key and send it to Discord.
-
-local HttpService = game:GetService("HttpService")
+-- Run this in VS Code (Lua) OR Roblox Executor
 
 -- ==================================================================
 -- CONFIGURATION (MUST MATCH MAIN.LUAU)
@@ -13,7 +11,7 @@ local KEY_SECRET = ".AqwozsKey3169!" -- MUST MATCH main.luau EXACTLY
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1444687844068032544/simFozs7KofTf8-7yM_JQHhkVcZTUg1nVYY-Vj82WhMoYe9Gjapav8aJ97K6HxKkde7P"
 -- ==================================================================
 
--- Generate key (Same logic as main.luau)
+-- Generate key (Standard Lua Compatible)
 local function generateKey()
     local date = os.date("!*t")
     local seed
@@ -40,15 +38,19 @@ end
 
 local TODAYS_KEY = generateKey()
 
--- Send to Discord
-local function sendToDiscord()
-    local req = (http_request or request or HttpPost or syn.request)
-    if not req then
-        warn("Executor does not support HTTP requests.")
-        print("TODAYS KEY: " .. TODAYS_KEY)
-        return
-    end
+-- Environment Check
+local isRoblox = (game ~= nil and script ~= nil)
+local http_request = (http_request or request or HttpPost or syn and syn.request)
 
+print("\n===========================================")
+print("          AQWOZ HUB KEY GENERATOR          ")
+print("===========================================")
+print("DATE: " .. os.date("%Y-%m-%d"))
+print("KEY:  " .. TODAYS_KEY)
+print("===========================================\n")
+
+if isRoblox and http_request then
+    local HttpService = game:GetService("HttpService")
     local data = {
         content = "",
         embeds = {{
@@ -59,13 +61,14 @@ local function sendToDiscord()
         }}
     }
 
-    req({
+    http_request({
         Url = WEBHOOK_URL,
         Method = "POST",
         Headers = {["Content-Type"] = "application/json"},
         Body = HttpService:JSONEncode(data)
     })
-    print("Key sent to Discord: " .. TODAYS_KEY)
+    print(">> Sent to Discord Webhook!")
+else
+    print(">> Running in Standard Lua / No HTTP support.")
+    print(">> Copy the key above and update work.ink manually.")
 end
-
-sendToDiscord()
