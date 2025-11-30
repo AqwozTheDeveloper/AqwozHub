@@ -15,6 +15,14 @@ local silentAimMaxDistance = 0
 local teamCheckEnabled = false
 local targetPartName = "Head"
 local maxAngleDeg = 180
+local debugMode = false
+
+-- Debug logging function
+local function debugLog(...)
+    if debugMode then
+        print("[SilentAim Debug]", ...)
+    end
+end
 
 -- Visuals
 local fovCircleEnabled = false
@@ -148,6 +156,7 @@ local function getSilentAimTarget()
     if target and target.Character then
         local part = getTargetPart(target.Character)
         if part then
+            debugLog("Target found:", target.Name, "Part:", part.Name)
             return part.Position
         end
     end
@@ -278,14 +287,14 @@ end
 function module.toggleSilentAim(state)
     silentAimEnabled = state and true or false
     print("[SilentAim] Toggled:", silentAimEnabled)
-    print("[SilentAim Debug] Attempting to update settings after toggle")
+    debugLog("Attempting to update settings after toggle")
     local success, errorMsg = pcall(function()
         module.updateSettings()
     end)
     if not success then
-        warn("[SilentAim Debug] Error updating settings: ", errorMsg)
+        warn("[SilentAim] Error updating settings:", errorMsg)
     else
-        print("[SilentAim Debug] Settings updated successfully")
+        debugLog("Settings updated successfully")
     end
 end
 
@@ -347,6 +356,21 @@ function module.setMaxDistance(value)
     silentAimMaxDistance = math.max(0, v)
     print("[SilentAim] MaxDistance:", silentAimMaxDistance)
     module.updateSettings()
+end
+
+function module.toggleDebugMode(state)
+    debugMode = state and true or false
+    print("[SilentAim] DebugMode:", debugMode)
+end
+
+function module.getStats()
+    return {
+        enabled = silentAimEnabled,
+        fov = silentAimFOV,
+        maxDistance = silentAimMaxDistance,
+        targetPart = targetPartName,
+        teamCheck = teamCheckEnabled
+    }
 end
 
 function module.destroy()

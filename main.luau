@@ -191,11 +191,12 @@ Rayfield:Notify({
    Image = 4483362458,
 })
 
--- Tabs
-local MainTab = Window:CreateTab("Home", 4483362458) -- Title, Image
-local VisionTab = Window:CreateTab("Visuals", 4483362458)
-local CombatTab = Window:CreateTab("Combat", 4483362458)
-local SilentAimTab = Window:CreateTab("Silent Aim", 4483362458)
+-- Tabs with better icons
+local MainTab = Window:CreateTab("Home", "home") -- Home icon
+local VisionTab = Window:CreateTab("Visuals", "eye") -- Eye icon for ESP
+local CombatTab = Window:CreateTab("Aimbot", "crosshair") -- Crosshair for aimbot
+local SilentAimTab = Window:CreateTab("Silent Aim", "target") -- Target for silent aim
+local SettingsTab = Window:CreateTab("Settings", "settings") -- Settings tab
 
 local function setFlagValue(flag, value)
     if Rayfield.Flags and Rayfield.Flags[flag] and Rayfield.Flags[flag].Set then
@@ -204,7 +205,30 @@ local function setFlagValue(flag, value)
 end
 
 -- Home Tab
-MainTab:CreateParagraph({Title = "Welcome!", Content = "Hello, this script is developed by Aqwoz. Updates are on the way."})
+MainTab:CreateSection("Information")
+
+MainTab:CreateParagraph({Title = "Welcome to Aqwoz Hub!", Content = "A powerful Roblox script hub developed by AqwozTheDeveloper. Features include ESP, Aimbot, and Silent Aim."})
+
+MainTab:CreateSection("Quick Stats")
+
+MainTab:CreateParagraph({Title = "Version", Content = "v1.2.0 - Debug Update"})
+
+MainTab:CreateButton({
+    Name = "Join Discord",
+    Callback = function()
+        setclipboard("https://discord.gg/aqwozhub")
+        Rayfield:Notify({
+            Title = "Discord",
+            Content = "Discord invite copied to clipboard!",
+            Duration = 3
+        })
+    end,
+})
+
+MainTab:CreateSection("Credits")
+
+MainTab:CreateParagraph({Title = "Developer", Content = "AqwozTheDeveloper"})
+MainTab:CreateParagraph({Title = "UI Library", Content = "Rayfield by Sirius"})
 
 -- Vision Tab
 VisionTab:CreateToggle({
@@ -529,5 +553,146 @@ local function syncUIWithSettings()
     end
 end
 
+-- Settings Tab
+SettingsTab:CreateSection("Debug Mode")
+
+SettingsTab:CreateParagraph({Title = "Debug Mode", Content = "Enable debug mode to see detailed logs in the console. Useful for troubleshooting issues."})
+
+SettingsTab:CreateToggle({
+    Name = "Vision Debug Mode",
+    CurrentValue = false,
+    Flag = "VisionDebug",
+    Callback = function(Value)
+        visionScripts.toggleDebugMode(Value)
+    end,
+})
+
+SettingsTab:CreateToggle({
+    Name = "Aimbot Debug Mode",
+    CurrentValue = false,
+    Flag = "AimbotDebug",
+    Callback = function(Value)
+        aimbotScripts.toggleDebugMode(Value)
+    end,
+})
+
+SettingsTab:CreateToggle({
+    Name = "Silent Aim Debug Mode",
+    CurrentValue = false,
+    Flag = "SilentAimDebug",
+    Callback = function(Value)
+        silentAimScripts.toggleDebugMode(Value)
+    end,
+})
+
+SettingsTab:CreateSection("Configuration")
+
+SettingsTab:CreateButton({
+    Name = "Reset All Settings",
+    Callback = function()
+        Rayfield:Notify({
+            Title = "Reset Settings",
+            Content = "Resetting all settings to default...",
+            Duration = 3
+        })
+        settings = deepCopy(defaultSettings)
+        saveSettings()
+        applySavedSettings()
+        syncUIWithSettings()
+        Rayfield:Notify({
+            Title = "Reset Complete",
+            Content = "All settings have been reset. Please rejoin to apply changes.",
+            Duration = 5
+        })
+    end,
+})
+
+SettingsTab:CreateButton({
+    Name = "Save Current Settings",
+    Callback = function()
+        saveSettings()
+        Rayfield:Notify({
+            Title = "Settings Saved",
+            Content = "Your current settings have been saved!",
+            Duration = 3
+        })
+    end,
+})
+
+SettingsTab:CreateSection("Script Info")
+
+SettingsTab:CreateButton({
+    Name = "Print Aimbot Stats",
+    Callback = function()
+        local stats = aimbotScripts.getStats()
+        print("=== Aimbot Stats ===")
+        print("Enabled:", stats.enabled)
+        print("Current Target:", stats.currentTarget)
+        print("FOV:", stats.fov)
+        print("Smoothing:", stats.smoothing)
+        print("Target Part:", stats.targetPart)
+        print("Hold Active:", stats.holdActive)
+        Rayfield:Notify({
+            Title = "Aimbot Stats",
+            Content = "Stats printed to console (F9)",
+            Duration = 3
+        })
+    end,
+})
+
+SettingsTab:CreateButton({
+    Name = "Print Silent Aim Stats",
+    Callback = function()
+        local stats = silentAimScripts.getStats()
+        print("=== Silent Aim Stats ===")
+        print("Enabled:", stats.enabled)
+        print("FOV:", stats.fov)
+        print("Max Distance:", stats.maxDistance)
+        print("Target Part:", stats.targetPart)
+        print("Team Check:", stats.teamCheck)
+        Rayfield:Notify({
+            Title = "Silent Aim Stats",
+            Content = "Stats printed to console (F9)",
+            Duration = 3
+        })
+    end,
+})
+
+SettingsTab:CreateButton({
+    Name = "Print Vision Stats",
+    Callback = function()
+        local stats = visionScripts.getStats()
+        print("=== Vision Stats ===")
+        print("Enabled:", stats.enabled)
+        print("Team Check:", stats.teamCheck)
+        print("Tracked Players:", stats.trackedPlayers)
+        Rayfield:Notify({
+            Title = "Vision Stats",
+            Content = "Stats printed to console (F9)",
+            Duration = 3
+        })
+    end,
+})
+
+SettingsTab:CreateSection("Danger Zone")
+
+SettingsTab:CreateButton({
+    Name = "Destroy Script",
+    Callback = function()
+        Rayfield:Notify({
+            Title = "Destroying Script",
+            Content = "Cleaning up and destroying script...",
+            Duration = 2
+        })
+        task.wait(1)
+        visionScripts.destroy()
+        aimbotScripts.destroy()
+        silentAimScripts.destroy()
+        Rayfield:Destroy()
+    end,
+})
+
 applySavedSettings()
 syncUIWithSettings()
+
+print("[AqwozHub] Script loaded successfully!")

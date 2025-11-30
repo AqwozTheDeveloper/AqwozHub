@@ -39,6 +39,14 @@ local pointerConnection = nil
 
 local targetPartName = "Head"
 local maxAngleDeg = 180
+local debugMode = false
+
+-- Debug logging function
+local function debugLog(...)
+    if debugMode then
+        print("[Aimbot Debug]", ...)
+    end
+end
 
 local function getTargetPart(character)
     local part = character:FindFirstChild(targetPartName)
@@ -139,7 +147,10 @@ end
 -- Move mouse cursor to target position
 local function moveCursorToTarget(screenPos, factor)
     local Camera = getCamera()
-    if not Camera then return false end
+    if not Camera then 
+        debugLog("moveCursorToTarget: Camera not found")
+        return false 
+    end
     
     local viewportSize = Camera.ViewportSize
     local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
@@ -148,12 +159,17 @@ local function moveCursorToTarget(screenPos, factor)
     local deltaX = (screenPos.X - center.X) * factor
     local deltaY = (screenPos.Y - center.Y - guiInset.Y) * factor
     
+    debugLog("moveCursorToTarget: deltaX=", math.floor(deltaX), "deltaY=", math.floor(deltaY))
+    
     -- Try mousemoverel (most common executor function)
     if mousemoverel then
         local success = pcall(function()
             mousemoverel(deltaX, deltaY)
         end)
-        if success then return true end
+        if success then 
+            debugLog("mousemoverel succeeded")
+            return true 
+        end
     end
     
     -- Try Input.MouseMove
@@ -161,7 +177,10 @@ local function moveCursorToTarget(screenPos, factor)
         local success = pcall(function()
             Input.MouseMove(deltaX, deltaY)
         end)
-        if success then return true end
+        if success then 
+            debugLog("Input.MouseMove succeeded")
+            return true 
+        end
     end
     
     -- Try mouse_move
@@ -169,9 +188,13 @@ local function moveCursorToTarget(screenPos, factor)
         local success = pcall(function()
             mouse_move(deltaX, deltaY)
         end)
-        if success then return true end
+        if success then 
+            debugLog("mouse_move succeeded")
+            return true 
+        end
     end
     
+    debugLog("No mouse movement function available")
     return false
 end
 
@@ -189,6 +212,7 @@ local function aimbotLoop()
 
     local Camera = getCamera()
     if not Camera then 
+        debugLog("Camera not found")
         return 
     end
     
@@ -198,11 +222,16 @@ local function aimbotLoop()
         local part = getTargetPart(target.Character)
 
         if part then
+            debugLog("Target:", target.Name, "Part:", part.Name)
+            
             -- Check angle to target
             local toTarget = (part.Position - Camera.CFrame.Position).Unit
             local angle = math.deg(math.acos(math.clamp(Camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
             
+            debugLog("Angle:", math.floor(angle), "MaxAngle:", maxAngleDeg)
+            
             if angle > maxAngleDeg then 
+                debugLog("Angle exceeds max, skipping")
                 currentTarget = nil
                 return 
             end
@@ -212,6 +241,7 @@ local function aimbotLoop()
             if dynamicSmoothingEnabled and maxAngleDeg > 0 then
                 local ratio = math.clamp(angle / maxAngleDeg, 0.2, 1)
                 factor = math.clamp(factor * ratio, 0.01, 1)
+                debugLog("Dynamic smoothing factor:", factor)
             end
             
             -- Get target screen position
@@ -223,13 +253,17 @@ local function aimbotLoop()
                 
                 -- If cursor move failed, use camera-based aiming as fallback
                 if not cursorMoved then
+                    debugLog("Using camera-based aiming fallback")
                     local targetCFrame = CFrame.new(Camera.CFrame.Position, part.Position)
                     Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, factor)
                 end
+            else
+                debugLog("Target not on screen")
             end
             
             currentTarget = target
         else
+            debugLog("No valid target part")
             currentTarget = nil
         end
     else
@@ -494,6 +528,22 @@ end
 function module.toggleDynamicSmoothing(state)
     dynamicSmoothingEnabled = state and true or false
     print("[Aimbot] DynamicSmoothing:", dynamicSmoothingEnabled)
+end
+
+function module.toggleDebugMode(state)
+    debugMode = state and true or false
+    print("[Aimbot] DebugMode:", debugMode)
+end
+
+function module.getStats()
+    return {
+        enabled = aimbotEnabled,
+        currentTarget = currentTarget and currentTarget.Name or "None",
+        fov = aimbotFOV,
+        smoothing = aimbotSmoothing,
+        targetPart = targetPartName,
+        holdActive = aimHoldActive
+    }
 end
 
 function module.destroy()
