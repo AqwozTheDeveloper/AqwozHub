@@ -278,6 +278,8 @@ function module.toggleAimbot(state)
             aimbotConnection:Disconnect()
             aimbotConnection = nil
         end
+        -- Clear current target so FOV circle color resets
+        currentTarget = nil
     end
 end
 

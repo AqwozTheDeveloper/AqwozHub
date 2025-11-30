@@ -75,7 +75,8 @@ local function createESP(character)
     highlight.OutlineTransparency = 0
     highlight.Parent = character
 
-    print("[Vision] Highlight created for:", character.Parent.Name)
+    local playerName = player and player.Name or "Unknown"
+    print("[Vision] Highlight created for:", playerName)
     
     -- Cleanup on Death
     local humanoid = character:FindFirstChild("Humanoid")

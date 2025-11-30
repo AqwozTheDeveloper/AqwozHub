@@ -359,6 +359,8 @@ function module.destroy()
     if fovGui then
         fovGui:Destroy()
         fovGui = nil
+        fovFrame = nil
+        fovStroke = nil
     end
     
     print("[SilentAim] Module destroyed")

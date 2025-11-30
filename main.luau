@@ -27,9 +27,11 @@ local defaultSettings = {
     },
     SilentAim = {
         SilentAimToggle = false,
+        FOV = 200,
         TargetPart = "Head",
         MaxAngle = 180,
         MaxDistance = 0,
+        TeamCheck = false,
         FOVCircle = false
     }
 }
@@ -390,6 +392,29 @@ SilentAimTab:CreateToggle({
    end,
 })
 
+SilentAimTab:CreateSlider({
+   Name = "Silent Aim FOV",
+   Range = {10, 500},
+   Increment = 10,
+   Suffix = "px",
+   CurrentValue = settings.SilentAim.FOV or 200,
+   Flag = "SilentAim_FOV",
+   Callback = function(Value)
+        updateSetting("SilentAim", "FOV", Value)
+        silentAimScripts.setFOV(Value)
+   end,
+})
+
+SilentAimTab:CreateToggle({
+   Name = "Team Check",
+   CurrentValue = settings.SilentAim.TeamCheck or false,
+   Flag = "SilentAim_TeamCheck",
+   Callback = function(Value)
+        updateSetting("SilentAim", "TeamCheck", Value)
+        silentAimScripts.toggleTeamCheck(Value)
+   end,
+})
+
 SilentAimTab:CreateToggle({
    Name = "Show FOV Circle",
    CurrentValue = settings.SilentAim.FOVCircle or false,
@@ -462,11 +487,15 @@ local function applySavedSettings()
     end
 
     -- Silent Aim
+    silentAimScripts.setFOV(settings.SilentAim.FOV or 200)
     silentAimScripts.setTargetPart(settings.SilentAim.TargetPart)
     silentAimScripts.setMaxAngle(settings.SilentAim.MaxAngle)
     silentAimScripts.setMaxDistance(settings.SilentAim.MaxDistance)
-    silentAimScripts.toggleSilentAim(settings.SilentAim.SilentAimToggle)
+    silentAimScripts.toggleTeamCheck(settings.SilentAim.TeamCheck or false)
     silentAimScripts.toggleFOVCircle(settings.SilentAim.FOVCircle)
+    if settings.SilentAim.SilentAimToggle then
+        silentAimScripts.toggleSilentAim(true)
+    end
 end
 
 local function syncUIWithSettings()
@@ -487,9 +516,12 @@ local function syncUIWithSettings()
         PointerLock = settings.Aimbot.PointerLock,
         KeyToggle = settings.Aimbot.KeyToggle,
         SilentAimToggle = settings.SilentAim.SilentAimToggle,
+        SilentAim_FOV = settings.SilentAim.FOV or 200,
+        SilentAim_TeamCheck = settings.SilentAim.TeamCheck or false,
         SilentAim_TargetPart = settings.SilentAim.TargetPart,
         SilentAim_MaxAngle = settings.SilentAim.MaxAngle,
-        SilentAim_MaxDistance = settings.SilentAim.MaxDistance
+        SilentAim_MaxDistance = settings.SilentAim.MaxDistance,
+        SilentAim_FOVCircle = settings.SilentAim.FOVCircle or false
     }
 
     for flagName, value in pairs(flagValues) do
