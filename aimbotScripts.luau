@@ -583,8 +583,10 @@ function module.destroy()
         fovGui:Destroy()
         fovGui = nil
         fovFrame = nil
+        fovStroke = nil
         pointerFrame = nil
     end
+    print("[Aimbot] Module destroyed")
 end
 
 return module

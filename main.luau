@@ -165,6 +165,30 @@ aimbotScripts.init()
 local silentAimScripts = loadModule("silentAimScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHubLegacy/refs/heads/main/AqwozHub-main/silentAimScripts.luau")
 silentAimScripts.init()
 
+-- ============================================
+-- KEY SYSTEM CONFIGURATION
+-- ============================================
+-- Set to true to enable key system
+local KEY_SYSTEM_ENABLED = true
+
+-- Valid keys (users can use any of these)
+local VALID_KEYS = {
+    "AqwozHub2024",      -- Main key
+    "AqwozVIP",          -- VIP key
+    "AqwozFree",         -- Free key
+}
+
+-- Linkvertise/Ad link settings
+local KEY_LINK = "https://linkvertise.com/1234567/aqwozhub-key" -- Replace with your Linkvertise link
+local KEY_FROM_LINK = false -- Set to true if key is fetched from a URL (like Pastebin)
+local KEY_URL = "https://pastebin.com/raw/YOURKEY" -- URL that returns the key (if KEY_FROM_LINK is true)
+
+-- Discord settings
+local DISCORD_ENABLED = true
+local DISCORD_INVITE = "aqwozhub" -- Your Discord invite code (without discord.gg/)
+
+-- ============================================
+
 -- Window
 local Window = Rayfield:CreateWindow({
     Name = "Aqwoz Hub",
@@ -176,11 +200,20 @@ local Window = Rayfield:CreateWindow({
        FileName = "AqwozHub"
     },
     Discord = {
-       Enabled = false,
-       Invite = "noinvitelink",
+       Enabled = DISCORD_ENABLED,
+       Invite = DISCORD_INVITE,
        RememberJoins = true
     },
-    KeySystem = false,
+    KeySystem = KEY_SYSTEM_ENABLED,
+    KeySettings = {
+        Title = "Aqwoz Hub - Authentication",
+        Subtitle = "Key System",
+        Note = "Get your key from discord.gg/" .. DISCORD_INVITE .. " or complete the Linkvertise",
+        FileName = "AqwozHubKey",
+        SaveKey = true, -- Saves key so user doesn't need to re-enter
+        GrabKeyFromSite = KEY_FROM_LINK,
+        Key = KEY_FROM_LINK and {KEY_URL} or VALID_KEYS
+    }
 })
 
 -- Notification
@@ -211,12 +244,12 @@ MainTab:CreateParagraph({Title = "Welcome to Aqwoz Hub!", Content = "A powerful 
 
 MainTab:CreateSection("Quick Stats")
 
-MainTab:CreateParagraph({Title = "Version", Content = "v1.2.0 - Debug Update"})
+MainTab:CreateParagraph({Title = "Version", Content = "v1.3.0 - Key System Update"})
 
 MainTab:CreateButton({
     Name = "Join Discord",
     Callback = function()
-        setclipboard("https://discord.gg/aqwozhub")
+        setclipboard("https://discord.gg/" .. DISCORD_INVITE)
         Rayfield:Notify({
             Title = "Discord",
             Content = "Discord invite copied to clipboard!",
@@ -224,6 +257,22 @@ MainTab:CreateButton({
         })
     end,
 })
+
+MainTab:CreateButton({
+    Name = "Get Key (Linkvertise)",
+    Callback = function()
+        setclipboard(KEY_LINK)
+        Rayfield:Notify({
+            Title = "Key Link",
+            Content = "Linkvertise link copied! Complete it to get your key.",
+            Duration = 5
+        })
+    end,
+})
+
+MainTab:CreateSection("Monetization Info")
+
+MainTab:CreateParagraph({Title = "Support Us", Content = "Complete the Linkvertise to get your key. Keys are saved so you only need to do this once!"})
 
 MainTab:CreateSection("Credits")
 
