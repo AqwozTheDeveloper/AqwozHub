@@ -112,34 +112,74 @@ local function getClosestPlayer()
         return currentTarget
     end
 
+    local playerCount = 0
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
+        if player ~= LocalPlayer then
+            playerCount = playerCount + 1
+            
+            if not player.Character then
+                debugLog("Player", player.Name, "- No character")
+                continue
+            end
+            
             local humanoid = player.Character:FindFirstChild("Humanoid")
             local part = getTargetPart(player.Character)
 
-            if humanoid and humanoid.Health > 0 and part then
-                if teamCheckEnabled and player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team then
-                    continue
-                end
+            if not humanoid then
+                debugLog("Player", player.Name, "- No humanoid")
+                continue
+            end
+            
+            if humanoid.Health <= 0 then
+                debugLog("Player", player.Name, "- Dead")
+                continue
+            end
+            
+            if not part then
+                debugLog("Player", player.Name, "- No target part")
+                continue
+            end
 
-                local Camera = getCamera()
-                local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+            if teamCheckEnabled and player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team then
+                debugLog("Player", player.Name, "- Same team")
+                continue
+            end
 
-                if onScreen and isVisible(player.Character, part) then
-                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                    if aimbotMaxDistance and aimbotMaxDistance > 0 then
-                        local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
-                        if worldDist > aimbotMaxDistance then
-                            distance = math.huge
-                        end
-                    end
-                    if distance < shortestDistance then
-                        closestPlayer = player
-                        shortestDistance = distance
-                    end
+            local Camera = getCamera()
+            local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+
+            if not onScreen then
+                debugLog("Player", player.Name, "- Not on screen")
+                continue
+            end
+            
+            if not isVisible(player.Character, part) then
+                debugLog("Player", player.Name, "- Not visible (wall)")
+                continue
+            end
+
+            local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+            debugLog("Player", player.Name, "- Distance:", math.floor(distance), "FOV:", aimbotFOV)
+            
+            if aimbotMaxDistance and aimbotMaxDistance > 0 then
+                local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
+                if worldDist > aimbotMaxDistance then
+                    debugLog("Player", player.Name, "- Too far (studs)")
+                    distance = math.huge
                 end
             end
+            
+            if distance < shortestDistance then
+                closestPlayer = player
+                shortestDistance = distance
+            end
         end
+    end
+    
+    if playerCount == 0 then
+        debugLog("No other players in game")
+    elseif not closestPlayer then
+        debugLog("No valid target found out of", playerCount, "players")
     end
 
     return closestPlayer
