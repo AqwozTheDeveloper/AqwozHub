@@ -162,40 +162,43 @@ local function moveCursorToTarget(screenPos, factor)
     
     debugLog("moveCursorToTarget: deltaX=", math.floor(deltaX), "deltaY=", math.floor(deltaY))
     
-    -- Try mousemoverel (most common executor function)
-    if mousemoverel then
-        local success = pcall(function()
-            mousemoverel(deltaX, deltaY)
-        end)
+    -- Try mousemoverel (Synapse, Script-Ware, etc.)
+    if typeof(mousemoverel) == "function" then
+        local success = pcall(mousemoverel, deltaX, deltaY)
         if success then 
             debugLog("mousemoverel succeeded")
             return true 
         end
     end
     
-    -- Try Input.MouseMove
-    if Input and Input.MouseMove then
-        local success = pcall(function()
-            Input.MouseMove(deltaX, deltaY)
-        end)
+    -- Try Input.MouseMove (some executors)
+    if typeof(Input) == "table" and typeof(Input.MouseMove) == "function" then
+        local success = pcall(Input.MouseMove, deltaX, deltaY)
         if success then 
             debugLog("Input.MouseMove succeeded")
             return true 
         end
     end
     
-    -- Try mouse_move
-    if mouse_move then
-        local success = pcall(function()
-            mouse_move(deltaX, deltaY)
-        end)
+    -- Try mouse_move (Fluxus, etc.)
+    if typeof(mouse_move) == "function" then
+        local success = pcall(mouse_move, deltaX, deltaY)
         if success then 
             debugLog("mouse_move succeeded")
             return true 
         end
     end
     
-    debugLog("No mouse movement function available")
+    -- Try mousemoveabs (absolute positioning)
+    if typeof(mousemoveabs) == "function" then
+        local success = pcall(mousemoveabs, screenPos.X, screenPos.Y)
+        if success then
+            debugLog("mousemoveabs succeeded")
+            return true
+        end
+    end
+    
+    debugLog("No mouse movement function available - using camera fallback")
     return false
 end
 
@@ -277,6 +280,22 @@ end
 
 function module.init()
     print("[Aimbot] Module initialized")
+    
+    -- Check executor capabilities
+    local mouseFunc = "NONE"
+    if typeof(mousemoverel) == "function" then
+        mouseFunc = "mousemoverel"
+    elseif typeof(Input) == "table" and typeof(Input.MouseMove) == "function" then
+        mouseFunc = "Input.MouseMove"
+    elseif typeof(mouse_move) == "function" then
+        mouseFunc = "mouse_move"
+    elseif typeof(mousemoveabs) == "function" then
+        mouseFunc = "mousemoveabs"
+    end
+    print("[Aimbot] Mouse function available:", mouseFunc)
+    if mouseFunc == "NONE" then
+        warn("[Aimbot] No mouse function found! Aimbot will use camera fallback (may not work in all games)")
+    end
     if not inputBeganConn then
         inputBeganConn = UserInputService.InputBegan:Connect(function(input, gpe)
             if gpe then return end
