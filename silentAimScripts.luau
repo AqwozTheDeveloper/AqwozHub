@@ -48,6 +48,7 @@ local function ensureFOVGui()
     fovGui.Name = "AqwozHubSilentFOV"
     fovGui.IgnoreGuiInset = true
     fovGui.ResetOnSpawn = false
+    fovGui.DisplayOrder = 999 -- Ensure it's on top
     fovGui.Parent = pg
     
     fovFrame = Instance.new("Frame")
@@ -56,6 +57,7 @@ local function ensureFOVGui()
     fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
     fovFrame.Position = UDim2.fromOffset(0, 0)
     fovFrame.Size = UDim2.fromOffset(silentAimFOV * 2, silentAimFOV * 2)
+    fovFrame.ZIndex = 100
     fovFrame.Parent = fovGui
     
     fovStroke = Instance.new("UIStroke")
@@ -68,6 +70,7 @@ local function ensureFOVGui()
     corner.CornerRadius = UDim.new(1, 0)
     corner.Parent = fovFrame
     
+    print("[SilentAim] FOV GUI elements created successfully")
     return true
 end
 
@@ -447,11 +450,17 @@ end
 
 function module.toggleFOVCircle(state)
     fovCircleEnabled = state and true or false
+    print("[SilentAim] FOVCircle toggled:", fovCircleEnabled)
+    
     if fovCircleEnabled then
-        if ensureFOVGui() then
+        local success = ensureFOVGui()
+        print("[SilentAim] FOV GUI created:", success)
+        if success then
             fovFrame.Visible = true
+            updateFOVCircle() -- Position immediately
             if not fovConnection then
                 fovConnection = RunService.RenderStepped:Connect(updateFOVCircle)
+                print("[SilentAim] FOV update connection started")
             end
         end
     else
@@ -463,7 +472,6 @@ function module.toggleFOVCircle(state)
             fovFrame.Visible = false
         end
     end
-    print("[SilentAim] FOVCircle:", fovCircleEnabled)
     module.updateSettings()
 end
 
