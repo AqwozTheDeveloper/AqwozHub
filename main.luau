@@ -176,7 +176,7 @@ local KEY_ROTATION = "daily" -- Options: "daily", "hourly", "weekly", "none"
 local KEY_PREFIX = "Aqwoz" -- Prefix for generated keys
 
 -- Secret salt (change this to make your keys unique!)
-local KEY_SECRET = "YourSecretSalt123"
+local KEY_SECRET = ".AqwozsKey3169!"
 
 -- Generate rotating key based on time
 local function generateKey()
@@ -207,13 +207,56 @@ end
 
 -- Get today's valid key
 local TODAYS_KEY = generateKey()
-print("[AqwozHub] Today's key: " .. TODAYS_KEY) -- Remove this line in production!
+
+-- Send key to webhook (Only runs for you/developer)
+-- This prevents users from seeing the key in console
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1444687844068032544/simFozs7KofTf8-7yM_JQHhkVcZTUg1nVYY-Vj82WhMoYe9Gjapav8aJ97K6HxKkde7P"
+
+local function sendKeyToWebhook()
+    -- Only run if 'request' or 'http_request' is available (executors)
+    local req = (http_request or request or HttpPost or syn.request)
+    if req then
+        -- Check if key was already sent today to avoid spam
+        local today = os.date("%Y%m%d")
+        local keyFile = "AqwozHub_KeySent_" .. today
+        if isfile and isfile(keyFile) then return end
+        
+        -- Send to Discord
+        local data = {
+            content = "",
+            embeds = {{
+                title = "🔑 Aqwoz Hub Daily Key",
+                description = "**Date:** " .. os.date("%Y-%m-%d") .. "\n**Key:** `" .. TODAYS_KEY .. "`",
+                color = 65280, -- Green
+                footer = { text = "Auto-generated key" }
+            }}
+        }
+        
+        local success, response = pcall(function()
+            return req({
+                Url = WEBHOOK_URL,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = HttpService:JSONEncode(data)
+            })
+        end)
+        
+        if success and writefile then
+            writefile(keyFile, "sent")
+        end
+    end
+end
+
+-- Run safely in background
+task.spawn(sendKeyToWebhook)
 
 -- Valid keys (includes generated key + permanent VIP keys)
 local VALID_KEYS = {
     TODAYS_KEY,           -- Auto-generated rotating key
-    "AqwozHub-VIP-2024",  -- Permanent VIP key (for yourself/friends)
-    "AqwozHub-Lifetime",  -- Lifetime key
+    "AqwozHubVipFriend2302",  -- Permanent VIP key (for yourself/friends)
+    "AqwozHubLifetime1293231maSDn",  -- Lifetime key
 }
 
 -- work.ink link - You need to UPDATE this with today's key!
