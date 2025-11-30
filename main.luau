@@ -171,30 +171,82 @@ silentAimScripts.init()
 -- Set to true to enable key system
 local KEY_SYSTEM_ENABLED = true
 
--- Your key (this is what users will enter after completing work.ink)
--- IMPORTANT: Put this SAME key as the "paste" content in work.ink
+-- Key rotation settings
+local KEY_ROTATION = "daily" -- Options: "daily", "hourly", "weekly", "none"
+local KEY_PREFIX = "Aqwoz" -- Prefix for generated keys
+
+-- Secret salt (change this to make your keys unique!)
+local KEY_SECRET = "YourSecretSalt123"
+
+-- Generate rotating key based on time
+local function generateKey()
+    local date = os.date("!*t") -- UTC time
+    local seed
+    
+    if KEY_ROTATION == "hourly" then
+        seed = date.year * 1000000 + date.month * 10000 + date.day * 100 + date.hour
+    elseif KEY_ROTATION == "daily" then
+        seed = date.year * 10000 + date.month * 100 + date.day
+    elseif KEY_ROTATION == "weekly" then
+        local weekNum = math.floor(date.yday / 7)
+        seed = date.year * 100 + weekNum
+    else
+        return KEY_PREFIX .. "-Static-Key" -- No rotation
+    end
+    
+    -- Create hash from seed + secret
+    local hash = 0
+    local combined = tostring(seed) .. KEY_SECRET
+    for i = 1, #combined do
+        hash = (hash * 31 + string.byte(combined, i)) % 999999
+    end
+    
+    -- Format: Aqwoz-123456
+    return KEY_PREFIX .. "-" .. string.format("%06d", hash)
+end
+
+-- Get today's valid key
+local TODAYS_KEY = generateKey()
+print("[AqwozHub] Today's key: " .. TODAYS_KEY) -- Remove this line in production!
+
+-- Valid keys (includes generated key + permanent VIP keys)
 local VALID_KEYS = {
-    "AqwozHub-2024-Key",  -- Your main key
+    TODAYS_KEY,           -- Auto-generated rotating key
+    "AqwozHub-VIP-2024",  -- Permanent VIP key (for yourself/friends)
+    "AqwozHub-Lifetime",  -- Lifetime key
 }
 
--- work.ink link (replace with your actual link)
--- See setup instructions below
+-- work.ink link - You need to UPDATE this with today's key!
+-- Or use the Pastebin method below for automatic updates
 local KEY_LINK = "https://work.ink/YOUR_LINK_HERE"
+
+-- AUTOMATIC KEY METHOD (Recommended):
+-- Instead of work.ink, use a Pastebin that YOU update daily with the key
+-- Set this to true and put your Pastebin URL
+local USE_REMOTE_KEY = false
+local REMOTE_KEY_URL = "https://pastebin.com/raw/YOURPASTEBIN"
 
 -- Discord settings
 local DISCORD_ENABLED = true
 local DISCORD_INVITE = "aqwozhub" -- Your Discord invite code
 
 -- ============================================
--- HOW TO SET UP WORK.INK:
+-- HOW TO USE DAILY KEYS WITH WORK.INK:
 -- ============================================
--- 1. Go to https://work.ink and create an account
--- 2. Click "Create" -> "New Paste"
--- 3. In the "Paste Content" field, enter your key: AqwozHub-2024-Key
--- 4. Set monetization options (ads, captcha, etc.)
--- 5. Click "Create Paste"
--- 6. Copy the generated link and paste it above in KEY_LINK
--- 7. Users will complete the work.ink page and see the key
+-- OPTION 1: Manual Update (Simple)
+-- - Check console for "Today's key: Aqwoz-XXXXXX"
+-- - Update your work.ink paste content daily with new key
+--
+-- OPTION 2: Pastebin + work.ink (Recommended)
+-- 1. Create a Pastebin with today's key
+-- 2. Set USE_REMOTE_KEY = true above
+-- 3. Put Pastebin URL in REMOTE_KEY_URL
+-- 4. Create work.ink link that redirects to your Pastebin
+-- 5. Update Pastebin daily with new key (check console)
+--
+-- OPTION 3: Discord Bot (Advanced)
+-- - Create a Discord bot that posts daily key
+-- - Users get key from your Discord
 -- ============================================
 
 -- Window
@@ -214,13 +266,13 @@ local Window = Rayfield:CreateWindow({
     },
     KeySystem = KEY_SYSTEM_ENABLED,
     KeySettings = {
-        Title = "Aqwoz Hub - Authentication",
-        Subtitle = "Key System",
-        Note = "Get your key from discord.gg/" .. DISCORD_INVITE .. " or complete the Linkvertise",
-        FileName = "AqwozHubKey",
-        SaveKey = true, -- Saves key so user doesn't need to re-enter
-        GrabKeyFromSite = KEY_FROM_LINK,
-        Key = KEY_FROM_LINK and {KEY_URL} or VALID_KEYS
+        Title = "Aqwoz Hub - Key Required",
+        Subtitle = "Daily Key System",
+        Note = "Key changes " .. KEY_ROTATION .. "! Get it from work.ink or discord.gg/" .. DISCORD_INVITE,
+        FileName = "AqwozHubKey_" .. os.date("%Y%m%d"), -- New file each day = key expires
+        SaveKey = true,
+        GrabKeyFromSite = USE_REMOTE_KEY,
+        Key = USE_REMOTE_KEY and {REMOTE_KEY_URL} or VALID_KEYS
     }
 })
 
