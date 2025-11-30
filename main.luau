@@ -316,6 +316,12 @@ savedKeyValid = checkSavedKey()
 -- Skip key system if we have a valid saved key for today
 local shouldAskForKey = KEY_SYSTEM_ENABLED and not savedKeyValid
 
+if savedKeyValid then
+    print("[AqwozHub] Valid key found for today - skipping key prompt")
+else
+    print("[AqwozHub] No valid key - showing key prompt")
+end
+
 local Window = Rayfield:CreateWindow({
     Name = "Aqwoz Hub",
     LoadingTitle = "Aqwoz Hub",
@@ -336,15 +342,19 @@ local Window = Rayfield:CreateWindow({
         Subtitle = "Daily Key System",
         Note = "Link COPIED to clipboard! Paste in browser to get key.\nKey changes " .. KEY_ROTATION,
         FileName = "AqwozHubKey",
-        SaveKey = false, -- We handle saving ourselves
+        SaveKey = true, -- Let Rayfield save too
         GrabKeyFromSite = USE_REMOTE_KEY,
-        Key = USE_REMOTE_KEY and {REMOTE_KEY_URL} or VALID_KEYS,
-        Callback = function(enteredKey)
-            -- Save the key when user enters it successfully
-            saveKeyForToday(enteredKey)
-        end
+        Key = USE_REMOTE_KEY and {REMOTE_KEY_URL} or VALID_KEYS
     }
 })
+
+-- If key system was shown and we got here, the key was valid - save today's key
+if shouldAskForKey then
+    -- We got past the key system, so save TODAYS_KEY (the daily key that was validated)
+    -- This works because if user entered a valid key, it must be one of VALID_KEYS
+    saveKeyForToday(TODAYS_KEY)
+    print("[AqwozHub] Key validated and saved for today")
+end
 
 -- Notification
 Rayfield:Notify({
