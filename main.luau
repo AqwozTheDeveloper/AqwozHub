@@ -231,6 +231,8 @@ MainTab:CreateParagraph({Title = "Developer", Content = "AqwozTheDeveloper"})
 MainTab:CreateParagraph({Title = "UI Library", Content = "Rayfield by Sirius"})
 
 -- Vision Tab
+VisionTab:CreateSection("ESP Settings")
+
 VisionTab:CreateToggle({
    Name = "Enable ESP",
    CurrentValue = settings.Vision.ESPToggle,
@@ -249,6 +251,17 @@ VisionTab:CreateToggle({
         updateSetting("Vision", "ESP_TeamCheck", Value)
         visionScripts.toggleTeamCheck(Value)
    end,
+})
+
+VisionTab:CreateSection("ESP Appearance")
+
+VisionTab:CreateColorPicker({
+    Name = "ESP Color",
+    Color = Color3.fromRGB(0, 255, 100),
+    Flag = "ESPColor",
+    Callback = function(Value)
+        visionScripts.setESPColor(Value)
+    end
 })
 
 -- Combat Tab

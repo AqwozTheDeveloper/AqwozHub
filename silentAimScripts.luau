@@ -166,106 +166,152 @@ end
 function module.init()
     print("[SilentAim] Module initialized - Rivals Edition")
     
+    -- Check if executor functions are available
+    local hasHookmetamethod = typeof(hookmetamethod) == "function"
+    local hasNewcclosure = typeof(newcclosure) == "function"
+    local hasCheckcaller = typeof(checkcaller) == "function"
+    local hasGetnamecallmethod = typeof(getnamecallmethod) == "function"
+    
+    if not hasHookmetamethod then
+        warn("[SilentAim] hookmetamethod not available - Silent Aim will not work")
+        return
+    end
+    if not hasNewcclosure then
+        warn("[SilentAim] newcclosure not available - Silent Aim will not work")
+        return
+    end
+    if not hasCheckcaller then
+        warn("[SilentAim] checkcaller not available - Silent Aim will not work")
+        return
+    end
+    if not hasGetnamecallmethod then
+        warn("[SilentAim] getnamecallmethod not available - Silent Aim will not work")
+        return
+    end
+    
     -- __index hook (Mouse.Hit, Mouse.Target, UnitRay)
     local oldIndex
-    oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
-        if checkcaller() then return oldIndex(self, key) end
-        if not silentAimEnabled then
-            return oldIndex(self, key)
-        end
-        
-        if self:IsA("Mouse") then
-            local targetPos = getSilentAimTarget()
-            if targetPos then
-                local camera = getCamera()
-                if not camera then
-                    return oldIndex(self, key)
-                end
-                if key == "Hit" then
-                    return CFrame.new(targetPos)
-                elseif key == "Target" then
-                    local target = getClosestPlayer()
-                    if target and target.Character then
-                        return getTargetPart(target.Character)
+    local indexSuccess, indexErr = pcall(function()
+        oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
+            if checkcaller() then return oldIndex(self, key) end
+            if not silentAimEnabled then
+                return oldIndex(self, key)
+            end
+            
+            if self:IsA("Mouse") then
+                local targetPos = getSilentAimTarget()
+                if targetPos then
+                    local camera = getCamera()
+                    if not camera then
+                        return oldIndex(self, key)
                     end
-                elseif key == "UnitRay" then
-                    local origin = camera.CFrame.Position
-                    local direction = (targetPos - origin).Unit
-                    return Ray.new(origin, direction)
-                elseif key == "X" or key == "Y" then
-                    local success, screenPos = pcall(function()
-                        return camera:WorldToViewportPoint(targetPos)
-                    end)
-                    if success then
-                        return key == "X" and screenPos.X or screenPos.Y
+                    if key == "Hit" then
+                        return CFrame.new(targetPos)
+                    elseif key == "Target" then
+                        local target = getClosestPlayer()
+                        if target and target.Character then
+                            return getTargetPart(target.Character)
+                        end
+                    elseif key == "UnitRay" then
+                        local origin = camera.CFrame.Position
+                        local direction = (targetPos - origin).Unit
+                        return Ray.new(origin, direction)
+                    elseif key == "X" or key == "Y" then
+                        local success, screenPos = pcall(function()
+                            return camera:WorldToViewportPoint(targetPos)
+                        end)
+                        if success then
+                            return key == "X" and screenPos.X or screenPos.Y
+                        end
                     end
                 end
             end
-        end
-        
-        return oldIndex(self, key)
-    end))
+            
+            return oldIndex(self, key)
+        end))
+    end)
+    
+    if not indexSuccess then
+        warn("[SilentAim] Failed to hook __index:", indexErr)
+    else
+        debugLog("__index hook installed")
+    end
     
     -- __namecall hook (Raycast, FindPartOnRay, FireServer)
     local oldNamecall
-    oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        local args = {...}
-        
-        if checkcaller() then return oldNamecall(self, ...) end
-        if not silentAimEnabled then
+    local namecallSuccess, namecallErr = pcall(function()
+        oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+            local method = getnamecallmethod()
+            local args = {...}
+            
+            if checkcaller() then return oldNamecall(self, ...) end
+            if not silentAimEnabled then
+                return oldNamecall(self, ...)
+            end
+            
+            -- Workspace Raycast hook
+            if self == workspace then
+                if method == "Raycast" then
+                    local targetPos = getSilentAimTarget()
+                    if targetPos and typeof(args[1]) == "Vector3" and typeof(args[2]) == "Vector3" then
+                        local origin = args[1]
+                        local success, newDirection = pcall(function()
+                            return (targetPos - origin).Unit * args[2].Magnitude
+                        end)
+                        if success then
+                            debugLog("Raycast redirected to target")
+                            return oldNamecall(self, origin, newDirection, args[3])
+                        end
+                    end
+                elseif method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRayWithWhitelist" then
+                    local targetPos = getSilentAimTarget()
+                    if targetPos and typeof(args[1]) == "Ray" then
+                        local ray = args[1]
+                        local success, newDir = pcall(function()
+                            return (targetPos - ray.Origin).Unit * ray.Direction.Magnitude
+                        end)
+                        if success then
+                            debugLog("FindPartOnRay redirected to target")
+                            args[1] = Ray.new(ray.Origin, newDir)
+                            return oldNamecall(self, unpack(args))
+                        end
+                    end
+                end
+            end
+            
+            -- Camera:WorldToScreenPoint / ViewportPointToRay hook
+            local camera = getCamera()
+            if camera and self == camera then
+                if method == "ViewportPointToRay" or method == "ScreenPointToRay" then
+                    local targetPos = getSilentAimTarget()
+                    if targetPos then
+                        local origin = camera.CFrame.Position
+                        local success, direction = pcall(function()
+                            return (targetPos - origin).Unit
+                        end)
+                        if success then
+                            debugLog("Camera ray redirected to target")
+                            return Ray.new(origin, direction)
+                        end
+                    end
+                end
+            end
+            
             return oldNamecall(self, ...)
-        end
-        
-        -- Workspace Raycast hook
-        if self == workspace then
-            if method == "Raycast" then
-                local targetPos = getSilentAimTarget()
-                if targetPos and typeof(args[1]) == "Vector3" and typeof(args[2]) == "Vector3" then
-                    local origin = args[1]
-                    local success, newDirection = pcall(function()
-                        return (targetPos - origin).Unit * args[2].Magnitude
-                    end)
-                    if success then
-                        return oldNamecall(self, origin, newDirection, args[3])
-                    end
-                end
-            elseif method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRayWithWhitelist" then
-                local targetPos = getSilentAimTarget()
-                if targetPos and typeof(args[1]) == "Ray" then
-                    local ray = args[1]
-                    local success, newDir = pcall(function()
-                        return (targetPos - ray.Origin).Unit * ray.Direction.Magnitude
-                    end)
-                    if success then
-                        args[1] = Ray.new(ray.Origin, newDir)
-                        return oldNamecall(self, unpack(args))
-                    end
-                end
-            end
-        end
-        
-        -- Camera:WorldToScreenPoint / ViewportPointToRay hook
-        local camera = getCamera()
-        if camera and self == camera then
-            if method == "ViewportPointToRay" or method == "ScreenPointToRay" then
-                local targetPos = getSilentAimTarget()
-                if targetPos then
-                    local origin = camera.CFrame.Position
-                    local success, direction = pcall(function()
-                        return (targetPos - origin).Unit
-                    end)
-                    if success then
-                        return Ray.new(origin, direction)
-                    end
-                end
-            end
-        end
-        
-        return oldNamecall(self, ...)
-    end))
+        end))
+    end)
     
-    print("[SilentAim] Hooks installed successfully")
+    if not namecallSuccess then
+        warn("[SilentAim] Failed to hook __namecall:", namecallErr)
+    else
+        debugLog("__namecall hook installed")
+    end
+    
+    if indexSuccess and namecallSuccess then
+        print("[SilentAim] Hooks installed successfully")
+    else
+        warn("[SilentAim] Some hooks failed to install - Silent Aim may not work properly")
+    end
 end
 
 function module.updateSettings()
@@ -323,6 +369,10 @@ end
 function module.setFOV(value)
     silentAimFOV = math.max(1, tonumber(value) or silentAimFOV)
     print("[SilentAim] FOV set to:", silentAimFOV)
+    -- Update FOV circle size immediately if visible
+    if fovFrame and fovCircleEnabled then
+        fovFrame.Size = UDim2.fromOffset(silentAimFOV * 2, silentAimFOV * 2)
+    end
     module.updateSettings()
 end
 

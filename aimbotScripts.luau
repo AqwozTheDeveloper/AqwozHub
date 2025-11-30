@@ -319,7 +319,11 @@ end
 
 function module.setFOV(value)
     aimbotFOV = math.max(1, tonumber(value) or aimbotFOV)
-    print("[Aimbot] FOV set to:", value)
+    print("[Aimbot] FOV set to:", aimbotFOV)
+    -- Update FOV circle size immediately if visible
+    if fovFrame and fovCircleEnabled then
+        fovFrame.Size = UDim2.fromOffset(aimbotFOV * 2, aimbotFOV * 2)
+    end
 end
 
 function module.setSmoothing(value)
@@ -453,11 +457,14 @@ end
 local function updatePointerDot()
     if not pointerLockEnabled then return end
     if not pointerFrame or not fovGui then return end
-    local pos
     local Camera = getCamera()
     if not Camera then return end
+    
+    local guiInset = GuiService:GetGuiInset()
+    local pos
 
-    if currentTarget and currentTarget.Character then
+    -- If aimbot is enabled and we have a target, show pointer on target
+    if aimbotEnabled and currentTarget and currentTarget.Character then
         local part = getTargetPart(currentTarget.Character)
         if part then
             local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
@@ -466,10 +473,13 @@ local function updatePointerDot()
             end
         end
     end
+    
+    -- Fallback to screen center if no target
     if not pos then
-        local mouse = UserInputService:GetMouseLocation()
-        pos = Vector2.new(mouse.X, mouse.Y)
+        local viewport = Camera.ViewportSize
+        pos = Vector2.new(viewport.X / 2, viewport.Y / 2 + guiInset.Y)
     end
+    
     pointerFrame.Position = UDim2.fromOffset(pos.X, pos.Y)
 end
 
