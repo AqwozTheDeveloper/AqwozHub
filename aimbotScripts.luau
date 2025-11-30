@@ -163,23 +163,33 @@ local function aimbotLoop()
     if aimHoldEnabled and not aimHoldActive then return end
 
     local Camera = getCamera()
-    if not Camera then return end
+    if not Camera then 
+        print("[Aimbot Debug] Camera not found")
+        return 
+    end
     local target = getClosestPlayer()
 
     if target and target.Character then
+        print("[Aimbot Debug] Target found: ", target.Name)
         local part = getTargetPart(target.Character)
 
         if part then
+            print("[Aimbot Debug] Target part: ", part.Name)
             -- Kamerayı hedefin kafasına yönlendir
             local toTarget = (part.Position - Camera.CFrame.Position).Unit
             local angle = math.deg(math.acos(math.clamp(Camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
-            if angle > maxAngleDeg then return end
+            print("[Aimbot Debug] Angle to target: ", angle, " Max allowed: ", maxAngleDeg)
+            if angle > maxAngleDeg then 
+                print("[Aimbot Debug] Angle exceeds max, not locking")
+                return 
+            end
             
             local targetCFrame = CFrame.new(Camera.CFrame.Position, part.Position)
             local factor = aimbotSmoothing
             if dynamicSmoothingEnabled and maxAngleDeg > 0 then
                 local ratio = math.clamp(angle / maxAngleDeg, 0.2, 1)
                 factor = math.clamp(aimbotSmoothing * ratio, 0.01, 1)
+                print("[Aimbot Debug] Dynamic smoothing factor: ", factor)
             end
             
             -- Kamera + Cursor lock
@@ -188,12 +198,19 @@ local function aimbotLoop()
             -- Mouse'u da hedefe taşı
             local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
             if onScreen then
+                print("[Aimbot Debug] Target on screen, moving mouse to: ", screenPos.X, screenPos.Y)
                 moveMouse(Vector2.new(screenPos.X, screenPos.Y))
+            else
+                print("[Aimbot Debug] Target not on screen")
             end
             
             currentTarget = target
+        else
+            print("[Aimbot Debug] No valid target part found")
+            currentTarget = nil
         end
     else
+        print("[Aimbot Debug] No target found")
         currentTarget = nil
     end
 end
