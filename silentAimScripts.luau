@@ -208,6 +208,7 @@ function module.init()
         if checkcaller() then return oldNamecall(self, ...) end
         if not silentAimEnabled then
             return oldNamecall(self, ...)
+        end
         
         -- Workspace Raycast hook
         if self == workspace then
@@ -279,7 +280,15 @@ end
 function module.toggleSilentAim(state)
     silentAimEnabled = state and true or false
     print("[SilentAim] Toggled:", silentAimEnabled)
-    module.updateSettings()
+    print("[SilentAim Debug] Attempting to update settings after toggle")
+    local success, errorMsg = pcall(function()
+        module.updateSettings()
+    end)
+    if not success then
+        warn("[SilentAim Debug] Error updating settings: ", errorMsg)
+    else
+        print("[SilentAim Debug] Settings updated successfully")
+    end
 end
 
 function module.toggleFOVCircle(state)

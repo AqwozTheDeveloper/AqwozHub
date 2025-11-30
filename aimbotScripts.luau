@@ -139,7 +139,10 @@ end
 -- Mouse'u hedefe taşı
 local function moveMouse(targetScreenPos)
     local Camera = getCamera()
-    if not Camera then return end
+    if not Camera then 
+        print("[Aimbot Debug] moveMouse: Camera not found")
+        return 
+    end
     local viewportSize = Camera.ViewportSize
     local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
     local guiInset = GuiService:GetGuiInset()
@@ -150,17 +153,65 @@ local function moveMouse(targetScreenPos)
     -- Cursor hareketi için minimum hız uygula
     local cursorFactor = math.clamp(aimbotSmoothing, 0.01, 1)
     
+    print("[Aimbot Debug] moveMouse: deltaX=", deltaX, " deltaY=", deltaY, " factor=", cursorFactor)
+    
+    -- Try mousemoverel first (most executors)
     if mousemoverel then
-        pcall(function()
+        local success, err = pcall(function()
             mousemoverel(deltaX * cursorFactor, deltaY * cursorFactor)
         end)
+        if success then
+            print("[Aimbot Debug] mousemoverel succeeded")
+            return
+        else
+            print("[Aimbot Debug] mousemoverel failed:", err)
+        end
+    else
+        print("[Aimbot Debug] mousemoverel not available")
     end
+    
+    -- Fallback: Try Input.MouseMove if available
+    if Input and Input.MouseMove then
+        local success, err = pcall(function()
+            Input.MouseMove(deltaX * cursorFactor, deltaY * cursorFactor)
+        end)
+        if success then
+            print("[Aimbot Debug] Input.MouseMove succeeded")
+            return
+        else
+            print("[Aimbot Debug] Input.MouseMove failed:", err)
+        end
+    end
+    
+    -- Fallback: Try mouse1press/mouse1release style movement
+    if mouse_move then
+        local success, err = pcall(function()
+            mouse_move(deltaX * cursorFactor, deltaY * cursorFactor)
+        end)
+        if success then
+            print("[Aimbot Debug] mouse_move succeeded")
+            return
+        else
+            print("[Aimbot Debug] mouse_move failed:", err)
+        end
+    end
+    
+    warn("[Aimbot] No mouse movement function available! Aimbot requires executor support.")
 end
 
 -- Aimbot loop (Smooth)
 local function aimbotLoop()
-    if not aimbotEnabled then return end
-    if aimHoldEnabled and not aimHoldActive then return end
+    if not aimbotEnabled then 
+        return 
+    end
+    
+    -- If hold-to-aim is enabled, only aim when holding RMB
+    if aimHoldEnabled then
+        if not aimHoldActive then
+            return
+        end
+        print("[Aimbot Debug] Hold-to-aim active")
+    end
 
     local Camera = getCamera()
     if not Camera then 

@@ -98,6 +98,9 @@ local function updateSetting(section, key, value)
     saveSettings()
 end
 
+-- Expose updateSetting globally for modules to use
+_G.updateSetting = updateSetting
+
 -- Module Loader
 local function loadModule(path, url)
     -- 1. Try local file
