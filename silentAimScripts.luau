@@ -148,7 +148,7 @@ local function getClosestPlayer()
     return closestPlayer
 end
 
--- Hook için kullanılacak fonksiyon
+-- Get target position for silent aim
 local function getSilentAimTarget()
     if not silentAimEnabled then return nil end
     
@@ -163,6 +163,71 @@ local function getSilentAimTarget()
     return nil
 end
 
+-- Get the target part itself (not just position)
+local function getSilentAimTargetPart()
+    if not silentAimEnabled then return nil end
+    
+    local target = getClosestPlayer()
+    if target and target.Character then
+        local part = getTargetPart(target.Character)
+        if part then
+            return part
+        end
+    end
+    return nil
+end
+
+-- Modify arguments to redirect to target
+local function modifyArgs(args, targetPos)
+    local camera = getCamera()
+    if not camera then return args end
+    
+    local newArgs = {}
+    for i, arg in ipairs(args) do
+        if typeof(arg) == "Vector3" then
+            -- Check if this looks like a direction vector (normalized or small magnitude)
+            local mag = arg.Magnitude
+            if mag <= 1.1 and mag > 0 then
+                -- This is likely a direction, redirect it
+                local origin = camera.CFrame.Position
+                newArgs[i] = (targetPos - origin).Unit
+                debugLog("Modified direction Vector3 at index", i)
+            else
+                newArgs[i] = arg
+            end
+        elseif typeof(arg) == "CFrame" then
+            -- Redirect CFrame to look at target
+            newArgs[i] = CFrame.new(arg.Position, targetPos)
+            debugLog("Modified CFrame at index", i)
+        elseif typeof(arg) == "Ray" then
+            -- Redirect ray to target
+            local newDir = (targetPos - arg.Origin).Unit * arg.Direction.Magnitude
+            newArgs[i] = Ray.new(arg.Origin, newDir)
+            debugLog("Modified Ray at index", i)
+        elseif typeof(arg) == "table" then
+            -- Recursively check tables for Vector3/CFrame
+            newArgs[i] = {}
+            for k, v in pairs(arg) do
+                if typeof(v) == "Vector3" then
+                    local mag = v.Magnitude
+                    if mag <= 1.1 and mag > 0 then
+                        newArgs[i][k] = (targetPos - camera.CFrame.Position).Unit
+                    else
+                        newArgs[i][k] = v
+                    end
+                elseif typeof(v) == "CFrame" then
+                    newArgs[i][k] = CFrame.new(v.Position, targetPos)
+                else
+                    newArgs[i][k] = v
+                end
+            end
+        else
+            newArgs[i] = arg
+        end
+    end
+    return newArgs
+end
+
 function module.init()
     print("[SilentAim] Module initialized - Rivals Edition")
     
@@ -174,14 +239,14 @@ function module.init()
     
     if not hasHookmetamethod then
         warn("[SilentAim] hookmetamethod not available - Silent Aim will not work")
+        warn("[SilentAim] Your executor does not support this feature")
         return
     end
     if not hasNewcclosure then
-        warn("[SilentAim] newcclosure not available - Silent Aim will not work")
-        return
+        warn("[SilentAim] newcclosure not available - using regular function")
     end
     if not hasCheckcaller then
-        warn("[SilentAim] checkcaller not available - Silent Aim will not work")
+        warn("[SilentAim] checkcaller not available - Silent Aim may cause issues")
         return
     end
     if not hasGetnamecallmethod then
@@ -189,40 +254,43 @@ function module.init()
         return
     end
     
+    local wrapFunction = hasNewcclosure and newcclosure or function(f) return f end
+    
     -- __index hook (Mouse.Hit, Mouse.Target, UnitRay)
     local oldIndex
     local indexSuccess, indexErr = pcall(function()
-        oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
+        oldIndex = hookmetamethod(game, "__index", wrapFunction(function(self, key)
             if checkcaller() then return oldIndex(self, key) end
             if not silentAimEnabled then
                 return oldIndex(self, key)
             end
             
-            if self:IsA("Mouse") then
+            -- Mouse property hooks
+            if typeof(self) == "Instance" and self:IsA("Mouse") then
                 local targetPos = getSilentAimTarget()
                 if targetPos then
                     local camera = getCamera()
                     if not camera then
                         return oldIndex(self, key)
                     end
+                    
                     if key == "Hit" then
+                        debugLog("Mouse.Hit redirected")
                         return CFrame.new(targetPos)
                     elseif key == "Target" then
-                        local target = getClosestPlayer()
-                        if target and target.Character then
-                            return getTargetPart(target.Character)
-                        end
+                        debugLog("Mouse.Target redirected")
+                        return getSilentAimTargetPart()
                     elseif key == "UnitRay" then
+                        debugLog("Mouse.UnitRay redirected")
                         local origin = camera.CFrame.Position
                         local direction = (targetPos - origin).Unit
                         return Ray.new(origin, direction)
-                    elseif key == "X" or key == "Y" then
-                        local success, screenPos = pcall(function()
-                            return camera:WorldToViewportPoint(targetPos)
-                        end)
-                        if success then
-                            return key == "X" and screenPos.X or screenPos.Y
-                        end
+                    elseif key == "X" then
+                        local screenPos = camera:WorldToViewportPoint(targetPos)
+                        return screenPos.X
+                    elseif key == "Y" then
+                        local screenPos = camera:WorldToViewportPoint(targetPos)
+                        return screenPos.Y
                     end
                 end
             end
@@ -234,13 +302,13 @@ function module.init()
     if not indexSuccess then
         warn("[SilentAim] Failed to hook __index:", indexErr)
     else
-        debugLog("__index hook installed")
+        print("[SilentAim] __index hook installed")
     end
     
-    -- __namecall hook (Raycast, FindPartOnRay, FireServer)
+    -- __namecall hook (Raycast, FindPartOnRay, FireServer, InvokeServer)
     local oldNamecall
     local namecallSuccess, namecallErr = pcall(function()
-        oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+        oldNamecall = hookmetamethod(game, "__namecall", wrapFunction(function(self, ...)
             local method = getnamecallmethod()
             local args = {...}
             
@@ -249,51 +317,53 @@ function module.init()
                 return oldNamecall(self, ...)
             end
             
+            local targetPos = getSilentAimTarget()
+            if not targetPos then
+                return oldNamecall(self, ...)
+            end
+            
             -- Workspace Raycast hook
             if self == workspace then
                 if method == "Raycast" then
-                    local targetPos = getSilentAimTarget()
-                    if targetPos and typeof(args[1]) == "Vector3" and typeof(args[2]) == "Vector3" then
+                    if typeof(args[1]) == "Vector3" and typeof(args[2]) == "Vector3" then
                         local origin = args[1]
-                        local success, newDirection = pcall(function()
-                            return (targetPos - origin).Unit * args[2].Magnitude
-                        end)
-                        if success then
-                            debugLog("Raycast redirected to target")
-                            return oldNamecall(self, origin, newDirection, args[3])
-                        end
+                        local newDirection = (targetPos - origin).Unit * args[2].Magnitude
+                        debugLog("workspace:Raycast redirected")
+                        return oldNamecall(self, origin, newDirection, args[3])
                     end
                 elseif method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRayWithWhitelist" then
-                    local targetPos = getSilentAimTarget()
-                    if targetPos and typeof(args[1]) == "Ray" then
+                    if typeof(args[1]) == "Ray" then
                         local ray = args[1]
-                        local success, newDir = pcall(function()
-                            return (targetPos - ray.Origin).Unit * ray.Direction.Magnitude
-                        end)
-                        if success then
-                            debugLog("FindPartOnRay redirected to target")
-                            args[1] = Ray.new(ray.Origin, newDir)
-                            return oldNamecall(self, unpack(args))
-                        end
+                        local newDir = (targetPos - ray.Origin).Unit * ray.Direction.Magnitude
+                        args[1] = Ray.new(ray.Origin, newDir)
+                        debugLog(method .. " redirected")
+                        return oldNamecall(self, unpack(args))
                     end
                 end
             end
             
-            -- Camera:WorldToScreenPoint / ViewportPointToRay hook
+            -- Camera ray hooks
             local camera = getCamera()
             if camera and self == camera then
                 if method == "ViewportPointToRay" or method == "ScreenPointToRay" then
-                    local targetPos = getSilentAimTarget()
-                    if targetPos then
-                        local origin = camera.CFrame.Position
-                        local success, direction = pcall(function()
-                            return (targetPos - origin).Unit
-                        end)
-                        if success then
-                            debugLog("Camera ray redirected to target")
-                            return Ray.new(origin, direction)
-                        end
-                    end
+                    local origin = camera.CFrame.Position
+                    local direction = (targetPos - origin).Unit
+                    debugLog("Camera:" .. method .. " redirected")
+                    return Ray.new(origin, direction)
+                end
+            end
+            
+            -- RemoteEvent/RemoteFunction hooks for shooting
+            if typeof(self) == "Instance" then
+                if self:IsA("RemoteEvent") and method == "FireServer" then
+                    -- Modify arguments that contain Vector3/CFrame/Ray
+                    local modifiedArgs = modifyArgs(args, targetPos)
+                    debugLog("RemoteEvent:FireServer modified -", self.Name)
+                    return oldNamecall(self, unpack(modifiedArgs))
+                elseif self:IsA("RemoteFunction") and method == "InvokeServer" then
+                    local modifiedArgs = modifyArgs(args, targetPos)
+                    debugLog("RemoteFunction:InvokeServer modified -", self.Name)
+                    return oldNamecall(self, unpack(modifiedArgs))
                 end
             end
             
@@ -304,13 +374,14 @@ function module.init()
     if not namecallSuccess then
         warn("[SilentAim] Failed to hook __namecall:", namecallErr)
     else
-        debugLog("__namecall hook installed")
+        print("[SilentAim] __namecall hook installed")
     end
     
     if indexSuccess and namecallSuccess then
-        print("[SilentAim] Hooks installed successfully")
+        print("[SilentAim] All hooks installed successfully!")
+        print("[SilentAim] Bullets will now curve to " .. targetPartName)
     else
-        warn("[SilentAim] Some hooks failed to install - Silent Aim may not work properly")
+        warn("[SilentAim] Some hooks failed - Silent Aim may not work properly")
     end
 end
 
