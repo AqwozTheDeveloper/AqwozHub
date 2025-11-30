@@ -166,34 +166,35 @@ local silentAimScripts = loadModule("silentAimScripts.luau", "https://raw.github
 silentAimScripts.init()
 
 -- ============================================
--- KEY SYSTEM CONFIGURATION
+-- KEY SYSTEM CONFIGURATION (work.ink)
 -- ============================================
 -- Set to true to enable key system
 local KEY_SYSTEM_ENABLED = true
 
--- Valid keys (users can use any of these)
+-- Your key (this is what users will enter after completing work.ink)
+-- IMPORTANT: Put this SAME key as the "paste" content in work.ink
 local VALID_KEYS = {
-    "AqwozHub2024",      -- Main key
-    "AqwozVIP",          -- VIP key  
-    "AqwozFree",         -- Free key
+    "AqwozHub-2024-Key",  -- Your main key
 }
 
--- Lootlabs settings
--- To set up Lootlabs:
--- 1. Go to https://lootlabs.gg and create an account
--- 2. Create a new "Content Locker" 
--- 3. Set the unlock content to your key (e.g., "AqwozHub2024")
--- 4. Copy the Lootlabs link and paste it below
-local KEY_LINK = "https://lootlabs.gg/YOUR_LOOTLABS_LINK" -- Replace with your Lootlabs link
-
--- Alternative: Fetch key from URL (Pastebin, etc.)
-local KEY_FROM_LINK = false -- Set to true to fetch key from URL instead of hardcoded keys
-local KEY_URL = "https://pastebin.com/raw/YOURKEY" -- URL that returns the key
+-- work.ink link (replace with your actual link)
+-- See setup instructions below
+local KEY_LINK = "https://work.ink/YOUR_LINK_HERE"
 
 -- Discord settings
 local DISCORD_ENABLED = true
-local DISCORD_INVITE = "aqwozhub" -- Your Discord invite code (without discord.gg/)
+local DISCORD_INVITE = "aqwozhub" -- Your Discord invite code
 
+-- ============================================
+-- HOW TO SET UP WORK.INK:
+-- ============================================
+-- 1. Go to https://work.ink and create an account
+-- 2. Click "Create" -> "New Paste"
+-- 3. In the "Paste Content" field, enter your key: AqwozHub-2024-Key
+-- 4. Set monetization options (ads, captcha, etc.)
+-- 5. Click "Create Paste"
+-- 6. Copy the generated link and paste it above in KEY_LINK
+-- 7. Users will complete the work.ink page and see the key
 -- ============================================
 
 -- Window
@@ -266,20 +267,20 @@ MainTab:CreateButton({
 })
 
 MainTab:CreateButton({
-    Name = "Get Key (Lootlabs)",
+    Name = "Get Key (work.ink)",
     Callback = function()
         setclipboard(KEY_LINK)
         Rayfield:Notify({
-            Title = "Key Link",
-            Content = "Lootlabs link copied! Complete it to get your key.",
-            Duration = 5
+            Title = "Key Link Copied!",
+            Content = "Paste the link in your browser, complete the page, and copy the key shown.",
+            Duration = 6
         })
     end,
 })
 
-MainTab:CreateSection("Monetization Info")
+MainTab:CreateSection("How to Get Key")
 
-MainTab:CreateParagraph({Title = "Support Us", Content = "Complete the Lootlabs link to get your key. Keys are saved so you only need to do this once!"})
+MainTab:CreateParagraph({Title = "Instructions", Content = "1. Click 'Get Key' button above\n2. Paste link in browser\n3. Complete the page\n4. Copy the key shown\n5. Enter it in the key box"})
 
 MainTab:CreateSection("Credits")
 
