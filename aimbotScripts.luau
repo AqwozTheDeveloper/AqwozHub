@@ -14,7 +14,7 @@ local module = {}
 local aimbotEnabled = false
 local aimbotFOV = 200
 local aimbotConnection = nil
-local aimbotSmoothing = 0.1
+local aimbotSmoothing = 0.5 -- Higher = faster lock (0.1 = slow, 1.0 = instant)
 local dynamicSmoothingEnabled = false
 local aimbotMaxDistance = 0
 local predictionStrength = 0.135 -- Prediction factor
@@ -160,7 +160,16 @@ local function moveCursorToTarget(screenPos, factor)
     local deltaX = (screenPos.X - center.X) * factor
     local deltaY = (screenPos.Y - center.Y - guiInset.Y) * factor
     
-    debugLog("moveCursorToTarget: deltaX=", math.floor(deltaX), "deltaY=", math.floor(deltaY))
+    -- Round to integers (required for Xeno and some other executors)
+    deltaX = math.floor(deltaX + 0.5)
+    deltaY = math.floor(deltaY + 0.5)
+    
+    -- Skip tiny movements
+    if math.abs(deltaX) < 1 and math.abs(deltaY) < 1 then
+        return true
+    end
+    
+    debugLog("moveCursorToTarget: deltaX=", deltaX, "deltaY=", deltaY)
     
     -- Try mousemoverel (most common executor function)
     if mousemoverel then
@@ -331,12 +340,12 @@ function module.setFOV(value)
 end
 
 function module.setSmoothing(value)
-    local v = tonumber(value) or 1
-    -- Map 1-10 to roughly 0.05 - 0.8
-    -- 1 -> 0.05 (Very smooth)
-    -- 5 -> 0.25 (Medium)
-    -- 10 -> 0.8 (Fast)
-    aimbotSmoothing = math.clamp(v * 0.08, 0.05, 1)
+    local v = tonumber(value) or 5
+    -- Map 1-10 to 0.1 - 1.0
+    -- 1 -> 0.1 (Very smooth/slow)
+    -- 5 -> 0.5 (Medium)
+    -- 10 -> 1.0 (Instant lock)
+    aimbotSmoothing = math.clamp(v * 0.1, 0.1, 1)
     print("[Aimbot] Smoothing set to:", value, "(Internal:", aimbotSmoothing, ")")
 end
 

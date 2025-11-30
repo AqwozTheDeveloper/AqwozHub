@@ -102,6 +102,8 @@ local function getClosestPlayer()
     local shortestDistance = silentAimFOV
 
     local mousePos = UserInputService:GetMouseLocation()
+    local camera = getCamera()
+    if not camera then return nil end
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -114,14 +116,14 @@ local function getClosestPlayer()
                     continue
                 end
 
-                local camera = getCamera()
-                if not camera then continue end
                 local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
-
-                if onScreen then
+                
+                -- For silent aim, we don't strictly require onScreen
+                -- Just check if target is in front of camera (Z > 0)
+                if screenPos.Z > 0 then
                     local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
 
-                    -- Max distance check
+                    -- Max distance check (world distance)
                     if silentAimMaxDistance and silentAimMaxDistance > 0 then
                         local worldDist = (part.Position - camera.CFrame.Position).Magnitude
                         if worldDist > silentAimMaxDistance then
@@ -244,6 +246,12 @@ function module.init()
     local hasNewcclosure = typeof(newcclosure) == "function"
     local hasCheckcaller = typeof(checkcaller) == "function"
     local hasGetnamecallmethod = typeof(getnamecallmethod) == "function"
+    
+    print("[SilentAim] Executor Check:")
+    print("  hookmetamethod:", hasHookmetamethod and "YES" or "NO")
+    print("  newcclosure:", hasNewcclosure and "YES" or "NO")
+    print("  checkcaller:", hasCheckcaller and "YES" or "NO")
+    print("  getnamecallmethod:", hasGetnamecallmethod and "YES" or "NO")
     
     if not hasHookmetamethod then
         warn("[SilentAim] hookmetamethod not available - Silent Aim will not work")

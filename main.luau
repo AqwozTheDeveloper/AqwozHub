@@ -8,7 +8,8 @@ local CONFIG_FILE = "AqwozHubSettings.json"
 local defaultSettings = {
     Vision = {
         ESPToggle = false,
-        ESP_TeamCheck = false
+        ESP_TeamCheck = false,
+        ShowHealth = true
     },
     Aimbot = {
         AimbotToggle = false,
@@ -629,6 +630,7 @@ local function applySavedSettings()
     -- Vision
     visionScripts.toggleESP(settings.Vision.ESPToggle)
     visionScripts.toggleTeamCheck(settings.Vision.ESP_TeamCheck)
+    visionScripts.toggleShowHealth(settings.Vision.ShowHealth ~= false)
 
     -- Aimbot
     aimbotScripts.setSmoothing(settings.Aimbot.Smoothing)
@@ -659,10 +661,23 @@ local function applySavedSettings()
     end
 end
 
+-- Helper function to set Rayfield flag values
+local function setFlagValue(flag, value)
+    local success, err = pcall(function()
+        if Rayfield.Flags and Rayfield.Flags[flag] then
+            Rayfield.Flags[flag]:Set(value)
+        end
+    end)
+    if not success then
+        -- Silently fail - flag might not exist yet
+    end
+end
+
 local function syncUIWithSettings()
     local flagValues = {
         ESPToggle = settings.Vision.ESPToggle,
         ESP_TeamCheck = settings.Vision.ESP_TeamCheck,
+        ShowHealth = settings.Vision.ShowHealth ~= false,
         AimbotToggle = settings.Aimbot.AimbotToggle,
         TeamCheck = settings.Aimbot.TeamCheck,
         WallCheck = settings.Aimbot.WallCheck,

@@ -275,15 +275,29 @@ function module.toggleESP(state)
             espFolder:ClearAllChildren()
         end
 
-        -- Highlight'ları temizle
+        -- Highlight'ları ve Billboard'ları temizle
         for _, plr in ipairs(Players:GetPlayers()) do
             if plr.Character then
                 local highlight = plr.Character:FindFirstChild("ESPHighlight")
                 if highlight then
                     highlight:Destroy()
                 end
+                local head = plr.Character:FindFirstChild("Head")
+                if head then
+                    local billboard = head:FindFirstChild("ESPBillboard")
+                    if billboard then
+                        billboard:Destroy()
+                    end
+                end
             end
         end
+        
+        -- Clear health connections
+        for plr, conn in pairs(healthConnections) do
+            conn:Disconnect()
+        end
+        healthConnections = {}
+        
         debugLog("ESP disabled and cleared")
         return
     end
@@ -375,6 +389,17 @@ function module.setESPColor(color)
             if highlight then
                 highlight.FillColor = color
                 highlight.OutlineColor = color
+            end
+            -- Update name label color in health billboard
+            local head = plr.Character:FindFirstChild("Head")
+            if head then
+                local billboard = head:FindFirstChild("ESPBillboard")
+                if billboard then
+                    local nameLabel = billboard:FindFirstChild("NameLabel")
+                    if nameLabel then
+                        nameLabel.TextColor3 = color
+                    end
+                end
             end
         end
     end
