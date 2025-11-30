@@ -136,10 +136,13 @@ local function loadModule(path, url)
         -- Return dummy object to prevent crash
         return {
             init = function() end,
+            destroy = function() end,
             toggleESP = function() end,
             toggleAimbot = function() end,
+            toggleSilentAim = function() end,
             setFOV = function() end,
             setSmoothing = function() end,
+            setPrediction = function() end,
             toggleTeamCheck = function() end,
             toggleWallCheck = function() end,
             toggleHoldToAim = function() end,
@@ -150,7 +153,11 @@ local function loadModule(path, url)
             setMaxAngle = function() end,
             setMaxDistance = function() end,
             toggleDynamicSmoothing = function() end,
-            togglePointerLock = function() end
+            togglePointerLock = function() end,
+            toggleShowHealth = function() end,
+            setESPColor = function() end,
+            toggleDebugMode = function() end,
+            getStats = function() return {} end
         }
     end
 end
@@ -788,6 +795,7 @@ SettingsTab:CreateButton({
         print("Current Target:", stats.currentTarget)
         print("FOV:", stats.fov)
         print("Smoothing:", stats.smoothing)
+        print("Prediction:", stats.prediction)
         print("Target Part:", stats.targetPart)
         print("Hold Active:", stats.holdActive)
         Rayfield:Notify({
