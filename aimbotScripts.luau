@@ -392,6 +392,7 @@ local function ensureFOVGui()
     fovFrame = Instance.new("Frame")
     fovFrame.Name = "FOVCircle"
     fovFrame.BackgroundTransparency = 1
+    fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
     fovFrame.Position = UDim2.fromOffset(0, 0)
     fovFrame.Size = UDim2.fromOffset(aimbotFOV * 2, aimbotFOV * 2)
     fovFrame.ZIndex = 100
@@ -408,6 +409,7 @@ local function ensureFOVGui()
     pointerFrame.Name = "PointerDot"
     pointerFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     pointerFrame.BackgroundTransparency = 0
+    pointerFrame.AnchorPoint = Vector2.new(0.5, 0.5)
     pointerFrame.Size = UDim2.fromOffset(6, 6)
     pointerFrame.Position = UDim2.fromOffset(0, 0)
     pointerFrame.ZIndex = 101
@@ -461,7 +463,7 @@ local function updatePointerDot()
         local mouse = UserInputService:GetMouseLocation()
         pos = Vector2.new(mouse.X, mouse.Y)
     end
-    pointerFrame.Position = UDim2.fromOffset(pos.X - 3, pos.Y - 3)
+    pointerFrame.Position = UDim2.fromOffset(pos.X, pos.Y)
 end
 
 function module.toggleFOVCircle(state)
