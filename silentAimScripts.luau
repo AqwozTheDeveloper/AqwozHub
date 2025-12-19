@@ -15,6 +15,13 @@ local wallCheckEnabled = false
 local targetPartName = "Head"
 local currentTarget = nil
 local silentAimMaxDistance = 0
+local fovCircleEnabled = false
+local fovGui = nil
+local fovFrame = nil
+local fovConnection = nil
+local fovStroke = nil
+local fovDefaultColor = Color3.fromRGB(255, 0, 0)
+local fovLockedColor = Color3.fromRGB(255, 100, 100)
 
 -- Namecall hook for silent aim
 local oldNamecall
@@ -172,6 +179,70 @@ function module.setTargetPart(name)
     print("[SilentAim] TargetPart:", targetPartName)
 end
 
+local function ensureFOVGui()
+    if fovGui and fovFrame then return true end
+    local pg = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui")
+    if not pg then return false end
+    fovGui = Instance.new("ScreenGui")
+    fovGui.Name = "SilentAimFOV"
+    fovGui.IgnoreGuiInset = true
+    fovGui.ResetOnSpawn = false
+    fovGui.Parent = pg
+    fovFrame = Instance.new("Frame")
+    fovFrame.Name = "FOVCircle"
+    fovFrame.BackgroundTransparency = 1
+    fovFrame.Position = UDim2.fromOffset(0, 0)
+    fovFrame.Size = UDim2.fromOffset(silentAimFOV * 2, silentAimFOV * 2)
+    fovFrame.ZIndex = 100
+    fovFrame.Parent = fovGui
+    fovStroke = Instance.new("UIStroke")
+    fovStroke.Thickness = 2
+    fovStroke.Transparency = 0.3
+    fovStroke.Color = fovDefaultColor
+    fovStroke.Parent = fovFrame
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = fovFrame
+    return true
+end
+
+local function updateFOVCircle()
+    if not fovCircleEnabled then return end
+    if not fovGui or not fovFrame then return end
+    local mouse = UserInputService:GetMouseLocation()
+    fovFrame.Size = UDim2.fromOffset(silentAimFOV * 2, silentAimFOV * 2)
+    fovFrame.Position = UDim2.fromOffset(mouse.X - silentAimFOV, mouse.Y - silentAimFOV)
+    if fovStroke then
+        if currentTarget then
+            fovStroke.Color = fovLockedColor
+        else
+            fovStroke.Color = fovDefaultColor
+        end
+    end
+end
+
+function module.toggleFOVCircle(state)
+    fovCircleEnabled = state and true or false
+    print("[SilentAim] FOVCircle:", fovCircleEnabled)
+    if fovCircleEnabled then
+        if ensureFOVGui() then
+            fovFrame.Visible = true
+            updateFOVCircle()
+            if not fovConnection then
+                fovConnection = RunService.RenderStepped:Connect(updateFOVCircle)
+            end
+        end
+    else
+        if fovConnection then
+            fovConnection:Disconnect()
+            fovConnection = nil
+        end
+        if fovFrame then
+            fovFrame.Visible = false
+        end
+    end
+end
+
 function module.setMaxDistance(value)
     local v = tonumber(value) or 0
     silentAimMaxDistance = math.max(0, v)
@@ -188,6 +259,17 @@ function module.destroy()
     if silentAimConnection then
         silentAimConnection:Disconnect()
         silentAimConnection = nil
+    end
+    
+    if fovConnection then
+        fovConnection:Disconnect()
+        fovConnection = nil
+    end
+    
+    if fovGui then
+        fovGui:Destroy()
+        fovGui = nil
+        fovFrame = nil
     end
     
     -- Restore original namecall

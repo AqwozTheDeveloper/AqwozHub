@@ -365,7 +365,7 @@ function module.toggleDistance(state)
     -- Refresh ESP if enabled
     if espEnabled then
         for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= Players.LocalPlayer and plr.Character then
+            if plr ~= LocalPlayer and plr.Character then
                 createESP(plr.Character)
             end
         end
@@ -378,7 +378,7 @@ function module.toggleHealth(state)
     -- Refresh ESP if enabled
     if espEnabled then
         for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= Players.LocalPlayer and plr.Character then
+            if plr ~= LocalPlayer and plr.Character then
                 createESP(plr.Character)
             end
         end
@@ -391,7 +391,7 @@ function module.toggleTracers(state)
     -- Refresh ESP if enabled
     if espEnabled then
         for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= Players.LocalPlayer and plr.Character then
+            if plr ~= LocalPlayer and plr.Character then
                 createESP(plr.Character)
             end
         end
@@ -404,7 +404,7 @@ function module.toggleNames(state)
     -- Refresh ESP if enabled
     if espEnabled then
         for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= Players.LocalPlayer and plr.Character then
+            if plr ~= LocalPlayer and plr.Character then
                 createESP(plr.Character)
             end
         end

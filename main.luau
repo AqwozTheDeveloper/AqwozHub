@@ -385,6 +385,15 @@ CombatTab:CreateSlider({
    end,
 })
 
+CombatTab:CreateToggle({
+   Name = "Show Silent Aim FOV Circle",
+   CurrentValue = false,
+   Flag = "SilentAimFOVCircle",
+   Callback = function(Value)
+        silentAimScripts.toggleFOVCircle(Value)
+   end,
+})
+
 -- Vision Tab Enhancements
 VisionTab:CreateSection("ESP Options")
 
