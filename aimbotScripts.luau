@@ -197,12 +197,24 @@ local function aimbotLoop()
             Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, factor)
             currentTarget = target
             
+            -- Move cursor to target position
+            local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
+            if onScreen then
+                local mousePos = UserInputService:GetMouseLocation()
+                local deltaX = screenPos.X - mousePos.X
+                local deltaY = screenPos.Y - mousePos.Y
+                
+                -- Apply smoothing to cursor movement
+                local cursorFactor = factor * 0.5 -- Slightly slower than camera for smoothness
+                mousemoverel(deltaX * cursorFactor, deltaY * cursorFactor)
+            end
+            
             -- Trigger bot logic
             if triggerBotEnabled and tick() - lastTriggerTime > triggerBotDelay then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
-                if onScreen then
-                    local mousePos = UserInputService:GetMouseLocation()
-                    local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                local screenPos2, onScreen2 = Camera:WorldToViewportPoint(targetPos)
+                if onScreen2 then
+                    local mousePos2 = UserInputService:GetMouseLocation()
+                    local distToCenter = (Vector2.new(screenPos2.X, screenPos2.Y) - mousePos2).Magnitude
                     if distToCenter < 5 then -- Within 5 pixels of crosshair
                         mouse1click()
                         lastTriggerTime = tick()
