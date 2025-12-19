@@ -220,7 +220,8 @@ function module.init()
         for _, plr in ipairs(Players:GetPlayers()) do
             if plr ~= LocalPlayer and plr.Character then
                 local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
-                if hrp then
+                local Camera = workspace.CurrentCamera
+                if hrp and Camera then
                     local distance = (hrp.Position - Camera.CFrame.Position).Magnitude
                     
                     -- Update distance

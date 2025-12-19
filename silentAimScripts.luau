@@ -43,6 +43,9 @@ local function isVisible(targetChar, targetPart)
     if not wallCheckEnabled then
         return true
     end
+    local Camera = workspace.CurrentCamera
+    if not Camera then return false end
+    
     local origin = Camera.CFrame.Position
     local direction = (targetPart.Position - origin)
     local params = RaycastParams.new()
@@ -104,43 +107,67 @@ function module.init()
         return
     end
     
-    -- Hook into namecall for silent aim
-    local hookFunction = function(...)
-        local args = {...}
-        local self = args[1]
-        local method = getnamecallmethod()
-        
-        if silentAimEnabled and (method == "FireServer" or method == "InvokeServer") then
-            -- Find target
-            local target = getClosestPlayerToMouse()
-            if target and target.Character then
-                local targetPart = getTargetPart(target.Character)
-                if targetPart then
-                    -- Modify the arguments to redirect to target
-                    -- This varies by game, but common patterns:
-                    for i, arg in ipairs(args) do
-                        if typeof(arg) == "Vector3" then
-                            args[i] = targetPart.Position
-                        elseif typeof(arg) == "CFrame" then
-                            args[i] = CFrame.new(targetPart.Position)
-                        elseif typeof(arg) == "Instance" and arg:IsA("BasePart") then
-                            args[i] = targetPart
+    -- Use hookmetamethod if available (Modern/Better)
+    if hookmetamethod then
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local method = getnamecallmethod()
+            local args = {...}
+            
+            if silentAimEnabled and (method == "FireServer" or method == "InvokeServer") then
+                local target = getClosestPlayerToMouse()
+                if target and target.Character then
+                    local targetPart = getTargetPart(target.Character)
+                    if targetPart then
+                        for i, arg in ipairs(args) do
+                            if typeof(arg) == "Vector3" then
+                                args[i] = targetPart.Position
+                            elseif typeof(arg) == "CFrame" then
+                                args[i] = CFrame.new(targetPart.Position)
+                            end
                         end
+                        return oldNamecall(self, unpack(args))
                     end
                 end
             end
-            return namecall(unpack(args))
+            
+            return oldNamecall(self, ...)
+        end)
+        print("[SilentAim] Hooked using hookmetamethod")
+    else
+        -- Fallback to old metatable hook
+        local string_lower = string.lower
+        local hookFunction = function(...)
+            local args = {...}
+            local self = args[1]
+            local method = getnamecallmethod()
+            
+            if silentAimEnabled and (method == "FireServer" or method == "InvokeServer") then
+                local target = getClosestPlayerToMouse()
+                if target and target.Character then
+                    local targetPart = getTargetPart(target.Character)
+                    if targetPart then
+                        for i, arg in ipairs(args) do
+                            if typeof(arg) == "Vector3" then
+                                args[i] = targetPart.Position
+                            elseif typeof(arg) == "CFrame" then
+                                args[i] = CFrame.new(targetPart.Position)
+                            end
+                        end
+                    end
+                end
+                return namecall(unpack(args))
+            end
+            
+            return namecall(...)
         end
         
-        return namecall(...)
-    end
-    
-    -- Use newcclosure if available, otherwise use regular function
-    if newcclosure then
-        mt.__namecall = newcclosure(hookFunction)
-    else
-        warn("[SilentAim] Warning: newcclosure not available, detection risk higher")
-        mt.__namecall = hookFunction
+        if newcclosure then
+            mt.__namecall = newcclosure(hookFunction)
+        else
+            mt.__namecall = hookFunction
+        end
+        print("[SilentAim] Hooked using mt.__namecall")
     end
     
     setreadonly(mt, true)

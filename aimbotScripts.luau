@@ -86,6 +86,9 @@ local function getClosestPlayer()
         if not wallCheckEnabled then
             return true
         end
+        local Camera = workspace.CurrentCamera
+        if not Camera then return false end
+        
         local origin = Camera.CFrame.Position
         local direction = (targetPart.Position - origin)
         local params = RaycastParams.new()
@@ -171,10 +174,19 @@ end
 local function aimbotLoop()
     if not aimbotEnabled then return end
     if aimHoldEnabled and not aimHoldActive then return end
+    
+    -- Update camera reference in case of respawn
+    local Camera = workspace.CurrentCamera
+    if not Camera then return end
 
     local target = getClosestPlayer()
 
     if target and target.Character then
+        if currentTarget ~= target then
+             -- New target acquired
+             print("[Aimbot] Locked on:", target.Name)
+        end
+        
         local part = getTargetPart(target.Character)
 
         if part then
