@@ -2,10 +2,14 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Camera = workspace.CurrentCamera
+-- local Camera = workspace.CurrentCamera -- Removed
 local LocalPlayer = Players.LocalPlayer
 
 local module = {}
+
+local function getCamera()
+    return workspace.CurrentCamera
+end
 
 local silentAimEnabled = false
 local silentAimFOV = 200
@@ -16,6 +20,9 @@ local targetPartName = "Head"
 local currentTarget = nil
 local silentAimMaxDistance = 0
 local fovCircleEnabled = false
+local predictionEnabled = false
+local predictionMultiplier = 1.0
+
 local fovGui = nil
 local fovFrame = nil
 local fovConnection = nil
@@ -37,6 +44,16 @@ local function getTargetPart(character)
         if fallback then return fallback end
     end
     return character:FindFirstChild("UpperTorso") or character:FindFirstChild("HumanoidRootPart")
+end
+
+local function getPredictedPosition(part)
+    if not predictionEnabled or not part then return part.Position end
+    local Camera = getCamera()
+    if not Camera then return part.Position end
+    local velocity = part.AssemblyLinearVelocity or Vector3.new(0, 0, 0)
+    local distance = (part.Position - Camera.CFrame.Position).Magnitude
+    local timeToReach = distance / 1000 -- Approximate bullet speed
+    return part.Position + (velocity * timeToReach * predictionMultiplier)
 end
 
 local function isVisible(targetChar, targetPart)
@@ -126,13 +143,14 @@ function module.init()
                     print("[SilentAim] Target found:", target.Name)
                     local targetPart = getTargetPart(target.Character)
                     if targetPart then
+                        local aimPos = getPredictedPosition(targetPart)
                         for i, arg in ipairs(args) do
                             if typeof(arg) == "Vector3" then
                                 print("[SilentAim] Modifying Vector3 arg")
-                                args[i] = targetPart.Position
+                                args[i] = aimPos
                             elseif typeof(arg) == "CFrame" then
                                 print("[SilentAim] Modifying CFrame arg")
-                                args[i] = CFrame.new(targetPart.Position)
+                                args[i] = CFrame.new(aimPos)
                             end
                         end
                         return oldNamecall(self, unpack(args))
@@ -157,18 +175,20 @@ function module.init()
                 local target = getClosestPlayerToMouse()
                 if target and target.Character then
                     print("[SilentAim] Target found:", target.Name)
-                    local targetPart = getTargetPart(target.Character)
                     if targetPart then
+                        -- Calculate predicted position
+                        local aimPos = getPredictedPosition(targetPart)
+                        
                         for i, arg in ipairs(args) do
                             if typeof(arg) == "Vector3" then
                                 print("[SilentAim] Modifying Vector3 arg")
-                                args[i] = targetPart.Position
+                                args[i] = aimPos
                             elseif typeof(arg) == "CFrame" then
-                                 print("[SilentAim] Modifying CFrame arg")
-                                args[i] = CFrame.new(targetPart.Position)
+                                print("[SilentAim] Modifying CFrame arg")
+                                args[i] = CFrame.new(aimPos)
                             end
                         end
-                         return namecall(unpack(args))
+                        return oldNamecall(self, unpack(args))
                     end
                 end
                  return namecall(unpack(args))
@@ -236,6 +256,16 @@ function module.setTargetPart(name)
         targetPartName = name
     end
     print("[SilentAim] TargetPart:", targetPartName)
+end
+
+function module.togglePrediction(state)
+    predictionEnabled = state
+    print("[SilentAim] Prediction:", state)
+end
+
+function module.setPredictionMultiplier(value)
+    predictionMultiplier = tonumber(value) or 1
+    print("[SilentAim] Pred Mult:", predictionMultiplier)
 end
 
 local function ensureFOVGui()

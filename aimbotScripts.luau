@@ -1,11 +1,14 @@
--- aimbotScripts.luau
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Camera = workspace.CurrentCamera
+-- local Camera = workspace.CurrentCamera -- Removed global camera dependency
 local LocalPlayer = Players.LocalPlayer
 
 local module = {}
+
+local function getCamera()
+    return workspace.CurrentCamera
+end
 
 local aimbotEnabled = false
 local aimbotFOV = 200
@@ -59,6 +62,8 @@ end
 
 local function getPredictedPosition(part)
     if not predictionEnabled or not part then return part.Position end
+    local Camera = getCamera()
+    if not Camera then return part.Position end
     local velocity = part.AssemblyLinearVelocity or Vector3.new(0, 0, 0)
     local distance = (part.Position - Camera.CFrame.Position).Magnitude
     local timeToReach = distance / 1000 -- Approximate bullet speed
@@ -86,7 +91,7 @@ local function getClosestPlayer()
         if not wallCheckEnabled then
             return true
         end
-        local Camera = workspace.CurrentCamera
+        local Camera = getCamera()
         if not Camera then return false end
         
         local origin = Camera.CFrame.Position
@@ -107,6 +112,10 @@ local function getClosestPlayer()
         local part = getTargetPart(player.Character)
         if not humanoid or humanoid.Health <= 0 or not part then return false end
         if teamCheckEnabled and player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team then return false end
+        
+        local Camera = getCamera()
+        if not Camera then return false end
+
         local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
         if not onScreen or not isVisible(player.Character, part) then return false end
         local distancePixels = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
@@ -137,11 +146,15 @@ local function getClosestPlayer()
                     if onScreen and isVisible(player.Character, part) then
                         local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
                         if aimbotMaxDistance and aimbotMaxDistance > 0 then
-                            local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
-                            if worldDist > aimbotMaxDistance then
-                                distance = math.huge
-                            end
-                        end
+        if aimbotMaxDistance and aimbotMaxDistance > 0 then
+            local Camera = getCamera()
+            if Camera then
+                local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
+                if worldDist > aimbotMaxDistance then return false end
+            end
+        end
+        return true
+    end
                         if distance < shortestDistance then
                             table.insert(candidates, {player = player, distance = distance, health = getPlayerHealth(player)})
                             closestPlayer = player
@@ -175,8 +188,8 @@ local function aimbotLoop()
     if not aimbotEnabled then return end
     if aimHoldEnabled and not aimHoldActive then return end
     
-    -- Update camera reference in case of respawn
-    local Camera = workspace.CurrentCamera
+    -- Update camera reference dynamically
+    local Camera = getCamera()
     if not Camera then return end
 
     local target = getClosestPlayer()
