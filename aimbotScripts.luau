@@ -86,6 +86,8 @@ local function getClosestPlayer()
     local shortestDistance = aimbotFOV
 
     local mousePos = UserInputService:GetMouseLocation()
+    local Camera = getCamera()
+    if not Camera then return nil end
 
     local function isVisible(targetChar, targetPart)
         if not wallCheckEnabled then
