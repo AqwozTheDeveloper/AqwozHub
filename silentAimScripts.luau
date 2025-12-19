@@ -62,6 +62,9 @@ local function getClosestPlayerToMouse()
     local closestPlayer = nil
     local shortestDistance = silentAimFOV
     local mousePos = UserInputService:GetMouseLocation()
+    
+    local Camera = workspace.CurrentCamera
+    if not Camera then return nil end
 
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -153,18 +156,22 @@ function module.init()
             if silentAimEnabled and (method == "FireServer" or method == "InvokeServer") then
                 local target = getClosestPlayerToMouse()
                 if target and target.Character then
+                    print("[SilentAim] Target found:", target.Name)
                     local targetPart = getTargetPart(target.Character)
                     if targetPart then
                         for i, arg in ipairs(args) do
                             if typeof(arg) == "Vector3" then
+                                print("[SilentAim] Modifying Vector3 arg")
                                 args[i] = targetPart.Position
                             elseif typeof(arg) == "CFrame" then
+                                 print("[SilentAim] Modifying CFrame arg")
                                 args[i] = CFrame.new(targetPart.Position)
                             end
                         end
+                         return namecall(unpack(args))
                     end
                 end
-                return namecall(unpack(args))
+                 return namecall(unpack(args))
             end
             
             return namecall(...)
