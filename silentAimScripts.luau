@@ -115,19 +115,27 @@ function module.init()
             local args = {...}
             
             if silentAimEnabled and (method == "FireServer" or method == "InvokeServer") then
+                -- Debug: Check if hook fires
+                -- print("[SilentAim] FireServer detected") 
+                
                 local target = getClosestPlayerToMouse()
                 if target and target.Character then
+                    print("[SilentAim] Target found:", target.Name)
                     local targetPart = getTargetPart(target.Character)
                     if targetPart then
                         for i, arg in ipairs(args) do
                             if typeof(arg) == "Vector3" then
+                                print("[SilentAim] Modifying Vector3 arg")
                                 args[i] = targetPart.Position
                             elseif typeof(arg) == "CFrame" then
+                                print("[SilentAim] Modifying CFrame arg")
                                 args[i] = CFrame.new(targetPart.Position)
                             end
                         end
                         return oldNamecall(self, unpack(args))
                     end
+                else
+                    -- print("[SilentAim] No target in FOV")
                 end
             end
             
