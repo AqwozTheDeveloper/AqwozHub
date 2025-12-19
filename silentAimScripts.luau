@@ -175,6 +175,7 @@ function module.init()
                 local target = getClosestPlayerToMouse()
                 if target and target.Character then
                     print("[SilentAim] Target found:", target.Name)
+                    local targetPart = getTargetPart(target.Character)
                     if targetPart then
                         -- Calculate predicted position
                         local aimPos = getPredictedPosition(targetPart)
