@@ -51,7 +51,23 @@ local function loadModule(path, url)
             toggleDistance = function() end,
             toggleHealth = function() end,
             toggleTracers = function() end,
-            toggleNames = function() end
+            toggleNames = function() end,
+            setTracerOrigin = function() end,
+            setBoxThickness = function() end,
+            -- Advanced aimbot functions
+            togglePrediction = function() end,
+            setPredictionMultiplier = function() end,
+            toggleStickyTarget = function() end,
+            toggleTriggerBot = function() end,
+            setTriggerDelay = function() end,
+            setAimOffset = function() end,
+            setTargetPriority = function() end,
+            addToIgnoreList = function() end,
+            removeFromIgnoreList = function() end,
+            clearIgnoreList = function() end,
+            -- Silent aim functions (already had toggleSilentAim above)
+            getCurrentTarget = function() end,
+            destroy = function() end
         }
     end
 end
