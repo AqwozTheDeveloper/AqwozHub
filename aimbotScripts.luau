@@ -508,6 +508,10 @@ end
 function module.toggleTriggerBot(state)
     triggerBotEnabled = state and true or false
     print("[Aimbot] TriggerBot:", triggerBotEnabled)
+    if triggerBotEnabled and not mouse1click then
+        warn("[Aimbot] WARNING: mouse1click function missing. Trigger bot will NOT work.")
+        warn("[Aimbot] Your executor may not support this feature.")
+    end
 end
 
 function module.setTriggerDelay(value)
