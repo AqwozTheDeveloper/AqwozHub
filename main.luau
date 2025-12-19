@@ -1,109 +1,5 @@
-
-local HttpService = game:GetService("HttpService")
+-- main.luau - Aqwoz Hub (Rayfield Edition)
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-
--- Settings persistence
-local CONFIG_FILE = "AqwozHubSettings.json"
-
-local defaultSettings = {
-    Vision = {
-        ESPToggle = false,
-        ESP_TeamCheck = false,
-        ShowHealth = true
-    },
-    Aimbot = {
-        AimbotToggle = false,
-        TeamCheck = false,
-        WallCheck = false,
-        Smoothing = 5,
-        FOV = 200,
-        TargetPart = "Head",
-        MaxAngle = 180,
-        MaxDistance = 0,
-        Prediction = 14,
-        HoldAim = false,
-        FOVCircle = false,
-        DynamicSmoothing = false,
-        PointerLock = false,
-        KeyToggle = false
-    },
-    SilentAim = {
-        SilentAimToggle = false,
-        FOV = 200,
-        TargetPart = "Head",
-        MaxAngle = 180,
-        MaxDistance = 0,
-        TeamCheck = false,
-        FOVCircle = false
-    }
-}
-
-local function deepCopy(tbl)
-    local copy = {}
-    for k, v in pairs(tbl) do
-        if type(v) == "table" then
-            copy[k] = deepCopy(v)
-        else
-            copy[k] = v
-        end
-    end
-    return copy
-end
-
-local function mergeSettings(base, overrides)
-    for k, v in pairs(overrides) do
-        if type(v) == "table" and type(base[k]) == "table" then
-            mergeSettings(base[k], v)
-        else
-            base[k] = v
-        end
-    end
-end
-
-local function loadSettings()
-    local data = deepCopy(defaultSettings)
-    if isfile and isfile(CONFIG_FILE) then
-        local success, decoded = pcall(function()
-            return HttpService:JSONDecode(readfile(CONFIG_FILE))
-        end)
-        if success and type(decoded) == "table" then
-            mergeSettings(data, decoded)
-        else
-            warn("[AqwozHub] Failed to decode settings:", decoded)
-        end
-    end
-    return data
-end
-
-local settings = loadSettings()
-
-local function saveSettings()
-    if not writefile then return end
-    local success, encoded = pcall(function()
-        return HttpService:JSONEncode(settings)
-    end)
-    if success then
-        local ok, err = pcall(function()
-            writefile(CONFIG_FILE, encoded)
-        end)
-        if not ok then
-            warn("[AqwozHub] Failed to save settings:", err)
-        end
-    else
-        warn("[AqwozHub] Failed to encode settings:", encoded)
-    end
-end
-
-local function updateSetting(section, key, value)
-    if not settings[section] then
-        settings[section] = {}
-    end
-    settings[section][key] = value
-    saveSettings()
-end
-
--- Expose updateSetting globally for modules to use
-_G.updateSetting = updateSetting
 
 -- Module Loader
 local function loadModule(path, url)
@@ -136,13 +32,10 @@ local function loadModule(path, url)
         -- Return dummy object to prevent crash
         return {
             init = function() end,
-            destroy = function() end,
             toggleESP = function() end,
             toggleAimbot = function() end,
-            toggleSilentAim = function() end,
             setFOV = function() end,
             setSmoothing = function() end,
-            setPrediction = function() end,
             toggleTeamCheck = function() end,
             toggleWallCheck = function() end,
             toggleHoldToAim = function() end,
@@ -153,11 +46,7 @@ local function loadModule(path, url)
             setMaxAngle = function() end,
             setMaxDistance = function() end,
             toggleDynamicSmoothing = function() end,
-            togglePointerLock = function() end,
-            toggleShowHealth = function() end,
-            setESPColor = function() end,
-            toggleDebugMode = function() end,
-            getStats = function() return {} end
+            togglePointerLock = function() end
         }
     end
 end
@@ -170,103 +59,6 @@ visionScripts.init()
 local aimbotScripts = loadModule("aimbotScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHubLegacy/refs/heads/main/AqwozHub-main/aimbotScripts.luau")
 aimbotScripts.init()
 
--- Silent Aim module
-local silentAimScripts = loadModule("silentAimScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHubLegacy/refs/heads/main/AqwozHub-main/silentAimScripts.luau")
-silentAimScripts.init()
-
--- ============================================
--- KEY SYSTEM CONFIGURATION (work.ink)
--- ============================================
--- Set to true to enable key system
-local KEY_SYSTEM_ENABLED = true
-
--- Key rotation settings
-local KEY_ROTATION = "daily" -- Options: "daily", "hourly", "weekly", "none"
-local KEY_PREFIX = "Aqwoz" -- Prefix for generated keys
-
--- Secret salt (change this to make your keys unique!)
-local KEY_SECRET = ".AqwozsKey3169!"
-
--- Generate rotating key based on time
-local function generateKey()
-    local date = os.date("!*t") -- UTC time
-    local seed
-    
-    if KEY_ROTATION == "hourly" then
-        seed = date.year * 1000000 + date.month * 10000 + date.day * 100 + date.hour
-    elseif KEY_ROTATION == "daily" then
-        seed = date.year * 10000 + date.month * 100 + date.day
-    elseif KEY_ROTATION == "weekly" then
-        local weekNum = math.floor(date.yday / 7)
-        seed = date.year * 100 + weekNum
-    else
-        return KEY_PREFIX .. "-Static-Key" -- No rotation
-    end
-    
-    -- Create hash from seed + secret
-    local hash = 0
-    local combined = tostring(seed) .. KEY_SECRET
-    for i = 1, #combined do
-        hash = (hash * 31 + string.byte(combined, i)) % 999999
-    end
-    
-    -- Format: Aqwoz-123456
-    return KEY_PREFIX .. "-" .. string.format("%06d", hash)
-end
-
--- Get today's valid key
-local TODAYS_KEY = generateKey()
-
--- Valid keys (includes generated key + permanent VIP keys)
-local VALID_KEYS = {
-    TODAYS_KEY,           -- Auto-generated rotating key
-    "AqwozHubVipFriend2302",  -- Permanent VIP key (for yourself/friends)
-    "AqwozHubLifetime1293231maSDn",  -- Lifetime key
-}
-
--- work.ink link - You need to UPDATE this with today's key!
--- Or use the Pastebin method below for automatic updates
-local KEY_LINK = "https://work.ink/29b8/get-key"
-
--- AUTOMATIC KEY METHOD (Recommended):
--- Instead of work.ink, use a Pastebin that YOU update daily with the key
--- Set this to true and put your Pastebin URL
-local USE_REMOTE_KEY = false
-local REMOTE_KEY_URL = "https://pastebin.com/raw/YOURPASTEBIN"
-
--- Discord settings
-local DISCORD_ENABLED = true
-local DISCORD_INVITE = "aqwozhub" -- Your Discord invite code
-
--- Auto-copy link to clipboard so user has it immediately
-if setclipboard then
-    setclipboard(KEY_LINK)
-end
-
--- Ensure config folder exists
-if makefolder and not isfolder("AqwozHubConfig") then
-    makefolder("AqwozHubConfig")
-end
-
--- ============================================
--- HOW TO USE DAILY KEYS WITH WORK.INK:
--- ============================================
--- OPTION 1: Manual Update (Simple)
--- - Check console for "Today's key: Aqwoz-XXXXXX"
--- - Update your work.ink paste content daily with new key
---
--- OPTION 2: Pastebin + work.ink (Recommended)
--- 1. Create a Pastebin with today's key
--- 2. Set USE_REMOTE_KEY = true above
--- 3. Put Pastebin URL in REMOTE_KEY_URL
--- 4. Create work.ink link that redirects to your Pastebin
--- 5. Update Pastebin daily with new key (check console)
---
--- OPTION 3: Discord Bot (Advanced)
--- - Create a Discord bot that posts daily key
--- - Users get key from your Discord
--- ============================================
-
 -- Window
 local Window = Rayfield:CreateWindow({
     Name = "Aqwoz Hub",
@@ -278,21 +70,11 @@ local Window = Rayfield:CreateWindow({
        FileName = "AqwozHub"
     },
     Discord = {
-       Enabled = DISCORD_ENABLED,
-       Invite = DISCORD_INVITE,
+       Enabled = false,
+       Invite = "noinvitelink",
        RememberJoins = true
     },
-    KeySystem = KEY_SYSTEM_ENABLED,
-    KeySettings = {
-        Title = "Aqwoz Hub - Key Required",
-        Subtitle = "Daily Key System",
-        Note = "Link COPIED to clipboard! Paste in browser to get key.\nKey changes " .. KEY_ROTATION,
-        FolderName = "AqwozHubConfig",
-        FileName = "AqwozHubKey", -- Saves as AqwozHubConfig/AqwozHubKey
-        SaveKey = true,
-        GrabKeyFromSite = USE_REMOTE_KEY,
-        Key = USE_REMOTE_KEY and {REMOTE_KEY_URL} or VALID_KEYS
-    }
+    KeySystem = false,
 })
 
 -- Notification
@@ -303,105 +85,22 @@ Rayfield:Notify({
    Image = 4483362458,
 })
 
--- Tabs with better icons
-local MainTab = Window:CreateTab("Home", "home") -- Home icon
-local VisionTab = Window:CreateTab("Visuals", "eye") -- Eye icon for ESP
-local CombatTab = Window:CreateTab("Aimbot", "crosshair") -- Crosshair for aimbot
-local SilentAimTab = Window:CreateTab("Silent Aim", "target") -- Target for silent aim
-local SettingsTab = Window:CreateTab("Settings", "settings") -- Settings tab
-
-local function setFlagValue(flag, value)
-    pcall(function()
-        if Rayfield.Flags and Rayfield.Flags[flag] and Rayfield.Flags[flag].Set then
-            Rayfield.Flags[flag]:Set(value)
-        end
-    end)
-end
+-- Tabs
+local MainTab = Window:CreateTab("Home", 4483362458) -- Title, Image
+local VisionTab = Window:CreateTab("Visuals", 4483362458)
+local CombatTab = Window:CreateTab("Combat", 4483362458)
 
 -- Home Tab
-MainTab:CreateSection("Information")
-
-MainTab:CreateParagraph({Title = "Welcome to Aqwoz Hub!", Content = "A powerful Roblox script hub developed by AqwozTheDeveloper. Features include ESP, Aimbot, and Silent Aim."})
-
-MainTab:CreateSection("Quick Stats")
-
-MainTab:CreateParagraph({Title = "Version", Content = "v1.3.0 - Key System Update"})
-
-MainTab:CreateButton({
-    Name = "Join Discord",
-    Callback = function()
-        setclipboard("https://discord.gg/" .. DISCORD_INVITE)
-        Rayfield:Notify({
-            Title = "Discord",
-            Content = "Discord invite copied to clipboard!",
-            Duration = 3
-        })
-    end,
-})
-
-MainTab:CreateButton({
-    Name = "Get Key (work.ink)",
-    Callback = function()
-        setclipboard(KEY_LINK)
-        Rayfield:Notify({
-            Title = "Key Link Copied!",
-            Content = "Paste the link in your browser, complete the page, and copy the key shown.",
-            Duration = 6
-        })
-    end,
-})
-
-MainTab:CreateSection("How to Get Key")
-
-MainTab:CreateParagraph({Title = "Instructions", Content = "1. Click 'Get Key' button above\n2. Paste link in browser\n3. Complete the page\n4. Copy the key shown\n5. Enter it in the key box"})
-
-MainTab:CreateSection("Credits")
-
-MainTab:CreateParagraph({Title = "Developer", Content = "AqwozTheDeveloper"})
-MainTab:CreateParagraph({Title = "UI Library", Content = "Rayfield by Sirius"})
+MainTab:CreateParagraph({Title = "Welcome!", Content = "Hello, this script is developed by Aqwoz. Updates are on the way."})
 
 -- Vision Tab
-VisionTab:CreateSection("ESP Settings")
-
 VisionTab:CreateToggle({
    Name = "Enable ESP",
-   CurrentValue = settings.Vision.ESPToggle,
-   Flag = "ESPToggle",
+   CurrentValue = false,
+   Flag = "ESPToggle", -- A flag is the identifier for the configuration file
    Callback = function(Value)
-        updateSetting("Vision", "ESPToggle", Value)
         visionScripts.toggleESP(Value)
    end,
-})
-
-VisionTab:CreateToggle({
-   Name = "Team Check",
-   CurrentValue = settings.Vision.ESP_TeamCheck,
-   Flag = "ESP_TeamCheck",
-   Callback = function(Value)
-        updateSetting("Vision", "ESP_TeamCheck", Value)
-        visionScripts.toggleTeamCheck(Value)
-   end,
-})
-
-VisionTab:CreateToggle({
-   Name = "Show Health",
-   CurrentValue = settings.Vision.ShowHealth ~= false, -- Default true
-   Flag = "ShowHealth",
-   Callback = function(Value)
-        updateSetting("Vision", "ShowHealth", Value)
-        visionScripts.toggleShowHealth(Value)
-   end,
-})
-
-VisionTab:CreateSection("ESP Appearance")
-
-VisionTab:CreateColorPicker({
-    Name = "ESP Color",
-    Color = Color3.fromRGB(0, 255, 100),
-    Flag = "ESPColor",
-    Callback = function(Value)
-        visionScripts.setESPColor(Value)
-    end
 })
 
 -- Combat Tab
@@ -409,30 +108,27 @@ CombatTab:CreateSection("Aimbot Settings")
 
 CombatTab:CreateToggle({
    Name = "Enable Aimbot",
-   CurrentValue = settings.Aimbot.AimbotToggle,
+   CurrentValue = false,
    Flag = "AimbotToggle",
    Callback = function(Value)
-        updateSetting("Aimbot", "AimbotToggle", Value)
         aimbotScripts.toggleAimbot(Value)
    end,
 })
 
 CombatTab:CreateToggle({
    Name = "Team Check",
-   CurrentValue = settings.Aimbot.TeamCheck,
+   CurrentValue = false,
    Flag = "TeamCheck",
    Callback = function(Value)
-        updateSetting("Aimbot", "TeamCheck", Value)
         aimbotScripts.toggleTeamCheck(Value)
    end,
 })
 
 CombatTab:CreateToggle({
    Name = "Wall Check",
-   CurrentValue = settings.Aimbot.WallCheck,
+   CurrentValue = false,
    Flag = "WallCheck",
    Callback = function(Value)
-        updateSetting("Aimbot", "WallCheck", Value)
         aimbotScripts.toggleWallCheck(Value)
    end,
 })
@@ -442,10 +138,9 @@ CombatTab:CreateSlider({
    Range = {1, 10},
    Increment = 1,
    Suffix = "",
-   CurrentValue = settings.Aimbot.Smoothing,
+   CurrentValue = 5,
    Flag = "Smoothing",
    Callback = function(Value)
-        updateSetting("Aimbot", "Smoothing", Value)
         aimbotScripts.setSmoothing(Value)
    end,
 })
@@ -455,24 +150,30 @@ CombatTab:CreateSlider({
    Range = {10, 500},
    Increment = 10,
    Suffix = "px",
-   CurrentValue = settings.Aimbot.FOV,
+   CurrentValue = 200,
    Flag = "FOV",
    Callback = function(Value)
-        updateSetting("Aimbot", "FOV", Value)
         aimbotScripts.setFOV(Value)
    end,
 })
 
 CombatTab:CreateSection("Targeting")
 
-CombatTab:CreateDropdown({
-   Name = "Target Part",
-   Options = {"Head", "UpperTorso"},
-   CurrentOption = settings.Aimbot.TargetPart,
-   Flag = "TargetPart",
-   Callback = function(Option)
-        updateSetting("Aimbot", "TargetPart", Option)
-        aimbotScripts.setTargetPart(Option)
+CombatTab:CreateToggle({
+   Name = "Target Head",
+   CurrentValue = true,
+   Flag = "TargetHead",
+   Callback = function(Value)
+        if Value then aimbotScripts.setTargetPart("Head") end
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Target UpperTorso",
+   CurrentValue = false,
+   Flag = "TargetUpperTorso",
+   Callback = function(Value)
+        if Value then aimbotScripts.setTargetPart("UpperTorso") end
    end,
 })
 
@@ -481,10 +182,9 @@ CombatTab:CreateSlider({
    Range = {5, 180},
    Increment = 5,
    Suffix = "deg",
-   CurrentValue = settings.Aimbot.MaxAngle,
+   CurrentValue = 180,
    Flag = "MaxAngle",
    Callback = function(Value)
-        updateSetting("Aimbot", "MaxAngle", Value)
         aimbotScripts.setMaxAngle(Value)
    end,
 })
@@ -494,24 +194,10 @@ CombatTab:CreateSlider({
    Range = {0, 1000},
    Increment = 50,
    Suffix = "studs",
-   CurrentValue = settings.Aimbot.MaxDistance,
+   CurrentValue = 0,
    Flag = "MaxDistance",
    Callback = function(Value)
-        updateSetting("Aimbot", "MaxDistance", Value)
         aimbotScripts.setMaxDistance(Value)
-   end,
-})
-
-CombatTab:CreateSlider({
-   Name = "Prediction",
-   Range = {0, 30},
-   Increment = 1,
-   Suffix = "%",
-   CurrentValue = (settings.Aimbot.Prediction or 14),
-   Flag = "Prediction",
-   Callback = function(Value)
-        updateSetting("Aimbot", "Prediction", Value)
-        aimbotScripts.setPrediction(Value / 100) -- Convert % to decimal
    end,
 })
 
@@ -519,40 +205,36 @@ CombatTab:CreateSection("Aim Assist UI")
 
 CombatTab:CreateToggle({
    Name = "Hold to Aim (RMB)",
-   CurrentValue = settings.Aimbot.HoldAim,
+   CurrentValue = false,
    Flag = "HoldAim",
    Callback = function(Value)
-        updateSetting("Aimbot", "HoldAim", Value)
         aimbotScripts.toggleHoldToAim(Value)
    end,
 })
 
 CombatTab:CreateToggle({
    Name = "Show FOV Circle",
-   CurrentValue = settings.Aimbot.FOVCircle,
+   CurrentValue = false,
    Flag = "FOVCircle",
    Callback = function(Value)
-        updateSetting("Aimbot", "FOVCircle", Value)
         aimbotScripts.toggleFOVCircle(Value)
    end,
 })
 
 CombatTab:CreateToggle({
    Name = "Dynamic Smoothing",
-   CurrentValue = settings.Aimbot.DynamicSmoothing,
+   CurrentValue = false,
    Flag = "DynamicSmoothing",
    Callback = function(Value)
-        updateSetting("Aimbot", "DynamicSmoothing", Value)
         aimbotScripts.toggleDynamicSmoothing(Value)
    end,
 })
 
 CombatTab:CreateToggle({
    Name = "Lock Cursor to Target",
-   CurrentValue = settings.Aimbot.PointerLock,
+   CurrentValue = false,
    Flag = "PointerLock",
    Callback = function(Value)
-        updateSetting("Aimbot", "PointerLock", Value)
         aimbotScripts.togglePointerLock(Value)
    end,
 })
@@ -561,309 +243,133 @@ CombatTab:CreateSection("Key Toggle")
 
 CombatTab:CreateToggle({
    Name = "Enable F Key Toggle",
-   CurrentValue = settings.Aimbot.KeyToggle,
+   CurrentValue = false,
    Flag = "KeyToggle",
    Callback = function(Value)
-        updateSetting("Aimbot", "KeyToggle", Value)
         aimbotScripts.toggleKeyToggle(Value)
    end,
 })
 
--- Silent Aim Tab
-SilentAimTab:CreateSection("Aimbot Settings")
+CombatTab:CreateSection("Advanced Aimbot")
 
-SilentAimTab:CreateToggle({
-   Name = "Enable Silent Aim",
-   CurrentValue = settings.SilentAim.SilentAimToggle,
-   Flag = "SilentAimToggle",
+CombatTab:CreateToggle({
+   Name = "Prediction (Velocity Leading)",
+   CurrentValue = false,
+   Flag = "Prediction",
    Callback = function(Value)
-        updateSetting("SilentAim", "SilentAimToggle", Value)
-        silentAimScripts.toggleSilentAim(Value)
+        aimbotScripts.togglePrediction(Value)
    end,
 })
 
-SilentAimTab:CreateSlider({
-   Name = "Silent Aim FOV",
-   Range = {10, 500},
-   Increment = 10,
-   Suffix = "px",
-   CurrentValue = settings.SilentAim.FOV or 200,
-   Flag = "SilentAim_FOV",
+CombatTab:CreateSlider({
+   Name = "Prediction Strength",
+   Range = {0.1, 5},
+   Increment = 0.1,
+   Suffix = "x",
+   CurrentValue = 1.0,
+   Flag = "PredictionMultiplier",
    Callback = function(Value)
-        updateSetting("SilentAim", "FOV", Value)
-        silentAimScripts.setFOV(Value)
+        aimbotScripts.setPredictionMultiplier(Value)
    end,
 })
 
-SilentAimTab:CreateToggle({
-   Name = "Team Check",
-   CurrentValue = settings.SilentAim.TeamCheck or false,
-   Flag = "SilentAim_TeamCheck",
+CombatTab:CreateToggle({
+   Name = "Sticky Target (Stay Locked)",
+   CurrentValue = false,
+   Flag = "StickyTarget",
    Callback = function(Value)
-        updateSetting("SilentAim", "TeamCheck", Value)
-        silentAimScripts.toggleTeamCheck(Value)
+        aimbotScripts.toggleStickyTarget(Value)
    end,
 })
 
-SilentAimTab:CreateToggle({
-   Name = "Show FOV Circle",
-   CurrentValue = settings.SilentAim.FOVCircle or false,
-   Flag = "SilentAim_FOVCircle",
+CombatTab:CreateToggle({
+   Name = "Trigger Bot",
+   CurrentValue = false,
+   Flag = "TriggerBot",
    Callback = function(Value)
-        updateSetting("SilentAim", "FOVCircle", Value)
-        silentAimScripts.toggleFOVCircle(Value)
+        aimbotScripts.toggleTriggerBot(Value)
    end,
 })
 
-SilentAimTab:CreateSection("Targeting")
-
-SilentAimTab:CreateDropdown({
-   Name = "Target Part",
-   Options = {"Head", "UpperTorso"},
-   CurrentOption = settings.SilentAim.TargetPart,
-   Flag = "SilentAim_TargetPart",
-   Callback = function(Option)
-        updateSetting("SilentAim", "TargetPart", Option)
-        silentAimScripts.setTargetPart(Option)
-   end,
-})
-
-SilentAimTab:CreateSlider({
-   Name = "Max Angle",
-   Range = {5, 180},
-   Increment = 5,
-   Suffix = "deg",
-   CurrentValue = settings.SilentAim.MaxAngle,
-   Flag = "SilentAim_MaxAngle",
+CombatTab:CreateSlider({
+   Name = "Trigger Delay",
+   Range = {0, 1},
+   Increment = 0.05,
+   Suffix = "s",
+   CurrentValue = 0.1,
+   Flag = "TriggerDelay",
    Callback = function(Value)
-        updateSetting("SilentAim", "MaxAngle", Value)
-        silentAimScripts.setMaxAngle(Value)
+        aimbotScripts.setTriggerDelay(Value)
    end,
 })
 
-SilentAimTab:CreateSlider({
-   Name = "Max Distance",
-   Range = {0, 1000},
+CombatTab:CreateDropdown({
+   Name = "Target Priority",
+   Options = {"closest", "lowest_health", "highest_threat"},
+   CurrentOption = "closest",
+   Flag = "TargetPriority",
+   Callback = function(Value)
+        aimbotScripts.setTargetPriority(Value)
+   end,
+})
+
+-- Vision Tab Enhancements
+VisionTab:CreateSection("ESP Options")
+
+VisionTab:CreateToggle({
+   Name = "Show Distance",
+   CurrentValue = false,
+   Flag = "ShowDistance",
+   Callback = function(Value)
+        visionScripts.toggleDistance(Value)
+   end,
+})
+
+VisionTab:CreateToggle({
+   Name = "Show Health Bars",
+   CurrentValue = false,
+   Flag = "ShowHealth",
+   Callback = function(Value)
+        visionScripts.toggleHealth(Value)
+   end,
+})
+
+VisionTab:CreateToggle({
+   Name = "Show Name Tags",
+   CurrentValue = false,
+   Flag = "ShowNames",
+   Callback = function(Value)
+        visionScripts.toggleNames(Value)
+   end,
+})
+
+VisionTab:CreateToggle({
+   Name = "Show Tracers",
+   CurrentValue = false,
+   Flag = "ShowTracers",
+   Callback = function(Value)
+        visionScripts.toggleTracers(Value)
+   end,
+})
+
+VisionTab:CreateDropdown({
+   Name = "Tracer Origin",
+   Options = {"Bottom", "Center", "Mouse"},
+   CurrentOption = "Bottom",
+   Flag = "TracerOrigin",
+   Callback = function(Value)
+        visionScripts.setTracerOrigin(Value)
+   end,
+})
+
+VisionTab:CreateSlider({
+   Name = "Max ESP Distance",
+   Range = {100, 2000},
    Increment = 50,
-   Suffix = "studs",
-   CurrentValue = settings.SilentAim.MaxDistance,
-   Flag = "SilentAim_MaxDistance",
+   Suffix = " studs",
+   CurrentValue = 500,
+   Flag = "MaxESPDistance",
    Callback = function(Value)
-        updateSetting("SilentAim", "MaxDistance", Value)
-        silentAimScripts.setMaxDistance(Value)
+        visionScripts.setMaxDistance(Value)
    end,
 })
-
-local function applySavedSettings()
-    -- Vision
-    visionScripts.toggleESP(settings.Vision.ESPToggle)
-    visionScripts.toggleTeamCheck(settings.Vision.ESP_TeamCheck)
-    visionScripts.toggleShowHealth(settings.Vision.ShowHealth ~= false)
-
-    -- Aimbot
-    aimbotScripts.setSmoothing(settings.Aimbot.Smoothing)
-    aimbotScripts.setFOV(settings.Aimbot.FOV)
-    aimbotScripts.setTargetPart(settings.Aimbot.TargetPart)
-    aimbotScripts.setMaxAngle(settings.Aimbot.MaxAngle)
-    aimbotScripts.setMaxDistance(settings.Aimbot.MaxDistance)
-    aimbotScripts.setPrediction((settings.Aimbot.Prediction or 14) / 100)
-    aimbotScripts.toggleTeamCheck(settings.Aimbot.TeamCheck)
-    aimbotScripts.toggleWallCheck(settings.Aimbot.WallCheck)
-    aimbotScripts.toggleHoldToAim(settings.Aimbot.HoldAim)
-    aimbotScripts.toggleFOVCircle(settings.Aimbot.FOVCircle)
-    aimbotScripts.toggleDynamicSmoothing(settings.Aimbot.DynamicSmoothing)
-    aimbotScripts.togglePointerLock(settings.Aimbot.PointerLock)
-    aimbotScripts.toggleKeyToggle(settings.Aimbot.KeyToggle)
-    if settings.Aimbot.AimbotToggle then
-        aimbotScripts.toggleAimbot(true)
-    end
-
-    -- Silent Aim
-    silentAimScripts.setFOV(settings.SilentAim.FOV or 200)
-    silentAimScripts.setTargetPart(settings.SilentAim.TargetPart)
-    silentAimScripts.setMaxAngle(settings.SilentAim.MaxAngle)
-    silentAimScripts.setMaxDistance(settings.SilentAim.MaxDistance)
-    silentAimScripts.toggleTeamCheck(settings.SilentAim.TeamCheck or false)
-    silentAimScripts.toggleFOVCircle(settings.SilentAim.FOVCircle)
-    if settings.SilentAim.SilentAimToggle then
-        silentAimScripts.toggleSilentAim(true)
-    end
-end
-
-local function syncUIWithSettings()
-    local flagValues = {
-        ESPToggle = settings.Vision.ESPToggle,
-        ESP_TeamCheck = settings.Vision.ESP_TeamCheck,
-        ShowHealth = settings.Vision.ShowHealth ~= false,
-        AimbotToggle = settings.Aimbot.AimbotToggle,
-        TeamCheck = settings.Aimbot.TeamCheck,
-        WallCheck = settings.Aimbot.WallCheck,
-        Smoothing = settings.Aimbot.Smoothing,
-        FOV = settings.Aimbot.FOV,
-        TargetPart = settings.Aimbot.TargetPart,
-        MaxAngle = settings.Aimbot.MaxAngle,
-        MaxDistance = settings.Aimbot.MaxDistance,
-        Prediction = settings.Aimbot.Prediction or 14,
-        HoldAim = settings.Aimbot.HoldAim,
-        FOVCircle = settings.Aimbot.FOVCircle,
-        DynamicSmoothing = settings.Aimbot.DynamicSmoothing,
-        PointerLock = settings.Aimbot.PointerLock,
-        KeyToggle = settings.Aimbot.KeyToggle,
-        SilentAimToggle = settings.SilentAim.SilentAimToggle,
-        SilentAim_FOV = settings.SilentAim.FOV or 200,
-        SilentAim_TeamCheck = settings.SilentAim.TeamCheck or false,
-        SilentAim_TargetPart = settings.SilentAim.TargetPart,
-        SilentAim_MaxAngle = settings.SilentAim.MaxAngle,
-        SilentAim_MaxDistance = settings.SilentAim.MaxDistance,
-        SilentAim_FOVCircle = settings.SilentAim.FOVCircle or false
-    }
-
-    for flagName, value in pairs(flagValues) do
-        setFlagValue(flagName, value)
-    end
-end
-
--- Settings Tab
-SettingsTab:CreateSection("Debug Mode")
-
-SettingsTab:CreateParagraph({Title = "Debug Mode", Content = "Enable debug mode to see detailed logs in the console. Useful for troubleshooting issues."})
-
-SettingsTab:CreateToggle({
-    Name = "Vision Debug Mode",
-    CurrentValue = false,
-    Flag = "VisionDebug",
-    Callback = function(Value)
-        visionScripts.toggleDebugMode(Value)
-    end,
-})
-
-SettingsTab:CreateToggle({
-    Name = "Aimbot Debug Mode",
-    CurrentValue = false,
-    Flag = "AimbotDebug",
-    Callback = function(Value)
-        aimbotScripts.toggleDebugMode(Value)
-    end,
-})
-
-SettingsTab:CreateToggle({
-    Name = "Silent Aim Debug Mode",
-    CurrentValue = false,
-    Flag = "SilentAimDebug",
-    Callback = function(Value)
-        silentAimScripts.toggleDebugMode(Value)
-    end,
-})
-
-SettingsTab:CreateSection("Configuration")
-
-SettingsTab:CreateButton({
-    Name = "Reset All Settings",
-    Callback = function()
-        Rayfield:Notify({
-            Title = "Reset Settings",
-            Content = "Resetting all settings to default...",
-            Duration = 3
-        })
-        settings = deepCopy(defaultSettings)
-        saveSettings()
-        applySavedSettings()
-        syncUIWithSettings()
-        Rayfield:Notify({
-            Title = "Reset Complete",
-            Content = "All settings have been reset. Please rejoin to apply changes.",
-            Duration = 5
-        })
-    end,
-})
-
-SettingsTab:CreateButton({
-    Name = "Save Current Settings",
-    Callback = function()
-        saveSettings()
-        Rayfield:Notify({
-            Title = "Settings Saved",
-            Content = "Your current settings have been saved!",
-            Duration = 3
-        })
-    end,
-})
-
-SettingsTab:CreateSection("Script Info")
-
-SettingsTab:CreateButton({
-    Name = "Print Aimbot Stats",
-    Callback = function()
-        local stats = aimbotScripts.getStats()
-        print("=== Aimbot Stats ===")
-        print("Enabled:", stats.enabled)
-        print("Current Target:", stats.currentTarget)
-        print("FOV:", stats.fov)
-        print("Smoothing:", stats.smoothing)
-        print("Prediction:", stats.prediction)
-        print("Target Part:", stats.targetPart)
-        print("Hold Active:", stats.holdActive)
-        Rayfield:Notify({
-            Title = "Aimbot Stats",
-            Content = "Stats printed to console (F9)",
-            Duration = 3
-        })
-    end,
-})
-
-SettingsTab:CreateButton({
-    Name = "Print Silent Aim Stats",
-    Callback = function()
-        local stats = silentAimScripts.getStats()
-        print("=== Silent Aim Stats ===")
-        print("Enabled:", stats.enabled)
-        print("FOV:", stats.fov)
-        print("Max Distance:", stats.maxDistance)
-        print("Target Part:", stats.targetPart)
-        print("Team Check:", stats.teamCheck)
-        Rayfield:Notify({
-            Title = "Silent Aim Stats",
-            Content = "Stats printed to console (F9)",
-            Duration = 3
-        })
-    end,
-})
-
-SettingsTab:CreateButton({
-    Name = "Print Vision Stats",
-    Callback = function()
-        local stats = visionScripts.getStats()
-        print("=== Vision Stats ===")
-        print("Enabled:", stats.enabled)
-        print("Team Check:", stats.teamCheck)
-        print("Tracked Players:", stats.trackedPlayers)
-        Rayfield:Notify({
-            Title = "Vision Stats",
-            Content = "Stats printed to console (F9)",
-            Duration = 3
-        })
-    end,
-})
-
-SettingsTab:CreateSection("Danger Zone")
-
-SettingsTab:CreateButton({
-    Name = "Destroy Script",
-    Callback = function()
-        Rayfield:Notify({
-            Title = "Destroying Script",
-            Content = "Cleaning up and destroying script...",
-            Duration = 2
-        })
-        task.wait(1)
-        visionScripts.destroy()
-        aimbotScripts.destroy()
-        silentAimScripts.destroy()
-        Rayfield:Destroy()
-    end,
-})
-
-applySavedSettings()
-syncUIWithSettings()
-
-print("[AqwozHub] Script loaded successfully!")

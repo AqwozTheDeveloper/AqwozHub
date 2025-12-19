@@ -2,22 +2,17 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local GuiService = game:GetService("GuiService")
+local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
-
-local function getCamera()
-    return workspace.CurrentCamera
-end
 
 local module = {}
 
 local aimbotEnabled = false
 local aimbotFOV = 200
 local aimbotConnection = nil
-local aimbotSmoothing = 0.5 -- Higher = faster lock (0.1 = slow, 1.0 = instant)
+local aimbotSmoothing = 0.1
 local dynamicSmoothingEnabled = false
 local aimbotMaxDistance = 0
-local predictionStrength = 0.135 -- Prediction factor
 local currentTarget = nil
 local teamCheckEnabled = false
 local wallCheckEnabled = false
@@ -40,30 +35,44 @@ local pointerConnection = nil
 
 local targetPartName = "Head"
 local maxAngleDeg = 180
-local debugMode = false
-
--- Debug logging function
-local function debugLog(...)
-    if debugMode then
-        print("[Aimbot Debug]", ...)
-    end
-end
+local predictionEnabled = false
+local predictionMultiplier = 1.0
+local stickyTargetEnabled = false
+local triggerBotEnabled = false
+local triggerBotDelay = 0.1
+local aimOffsetX = 0
+local aimOffsetY = 0
+local aimOffsetZ = 0
+local targetPriority = "closest" -- "closest", "lowest_health", "highest_threat"
+local ignoreList = {}
+local lastTriggerTime = 0
 
 local function getTargetPart(character)
     local part = character:FindFirstChild(targetPartName)
     if part then return part end
-    
-    -- R6 Compatibility: If we wanted UpperTorso but it's missing, try Torso
-    if targetPartName == "UpperTorso" then
-        local torso = character:FindFirstChild("Torso")
-        if torso then return torso end
-    end
-
     if targetPartName ~= "Head" then
         local fallback = character:FindFirstChild("Head")
         if fallback then return fallback end
     end
-    return character:FindFirstChild("UpperTorso") or character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+    return character:FindFirstChild("UpperTorso") or character:FindFirstChild("HumanoidRootPart")
+end
+
+local function getPredictedPosition(part)
+    if not predictionEnabled or not part then return part.Position end
+    local velocity = part.AssemblyLinearVelocity or Vector3.new(0, 0, 0)
+    local distance = (part.Position - Camera.CFrame.Position).Magnitude
+    local timeToReach = distance / 1000 -- Approximate bullet speed
+    return part.Position + (velocity * timeToReach * predictionMultiplier)
+end
+
+local function isPlayerIgnored(player)
+    return ignoreList[player.UserId] ~= nil
+end
+
+local function getPlayerHealth(player)
+    if not player.Character then return 0 end
+    local humanoid = player.Character:FindFirstChild("Humanoid")
+    return humanoid and humanoid.Health or 0
 end
 
 -- En yakın oyuncuyu bul
@@ -77,7 +86,6 @@ local function getClosestPlayer()
         if not wallCheckEnabled then
             return true
         end
-        local Camera = getCamera()
         local origin = Camera.CFrame.Position
         local direction = (targetPart.Position - origin)
         local params = RaycastParams.new()
@@ -96,7 +104,6 @@ local function getClosestPlayer()
         local part = getTargetPart(player.Character)
         if not humanoid or humanoid.Health <= 0 or not part then return false end
         if teamCheckEnabled and player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team then return false end
-        local Camera = getCamera()
         local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
         if not onScreen or not isVisible(player.Character, part) then return false end
         local distancePixels = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
@@ -108,10 +115,11 @@ local function getClosestPlayer()
         return true
     end
 
-    if currentTarget and isValidPlayer(currentTarget) then
+    if stickyTargetEnabled and currentTarget and isValidPlayer(currentTarget) then
         return currentTarget
     end
 
+    local candidates = {}
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local humanoid = player.Character:FindFirstChild("Humanoid")
@@ -119,175 +127,88 @@ local function getClosestPlayer()
 
             if humanoid and humanoid.Health > 0 and part then
                 if teamCheckEnabled and player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team then
-                    continue
-                end
+                    
+                else
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
 
-                local Camera = getCamera()
-                local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
-
-                if onScreen and isVisible(player.Character, part) then
-                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                    if aimbotMaxDistance and aimbotMaxDistance > 0 then
-                        local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
-                        if worldDist > aimbotMaxDistance then
-                            distance = math.huge
+                    if onScreen and isVisible(player.Character, part) then
+                        local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                        if aimbotMaxDistance and aimbotMaxDistance > 0 then
+                            local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
+                            if worldDist > aimbotMaxDistance then
+                                distance = math.huge
+                            end
                         end
-                    end
-                    if distance < shortestDistance then
-                        closestPlayer = player
-                        shortestDistance = distance
+                        if distance < shortestDistance then
+                            table.insert(candidates, {player = player, distance = distance, health = getPlayerHealth(player)})
+                            closestPlayer = player
+                            shortestDistance = distance
+                        end
                     end
                 end
             end
         end
     end
 
+    -- Apply target priority
+    if targetPriority == "lowest_health" and #candidates > 0 then
+        table.sort(candidates, function(a, b) return a.health < b.health end)
+        return candidates[1].player
+    elseif targetPriority == "highest_threat" and #candidates > 0 then
+        -- Threat is based on distance + health (closer + lower health = higher threat)
+        table.sort(candidates, function(a, b) 
+            local threatA = a.distance / (a.health + 1)
+            local threatB = b.distance / (b.health + 1)
+            return threatA > threatB
+        end)
+        return candidates[1].player
+    end
+    
     return closestPlayer
-end
-
--- Move mouse cursor to target position
-local function moveCursorToTarget(screenPos, factor)
-    local Camera = getCamera()
-    if not Camera then 
-        debugLog("moveCursorToTarget: Camera not found")
-        return false 
-    end
-    
-    -- Get current mouse position (where cursor actually is)
-    local mousePos = UserInputService:GetMouseLocation()
-    
-    -- Get GUI Inset (top bar offset)
-    local guiInset = GuiService:GetGuiInset()
-    
-    -- Calculate delta from current mouse position to target
-    -- screenPos is relative to Viewport (excludes top bar)
-    -- mousePos is relative to Screen (includes top bar)
-    -- So we add guiInset.Y to screenPos.Y to make them comparable
-    local targetScreenX = screenPos.X
-    local targetScreenY = screenPos.Y + guiInset.Y
-    
-    local deltaX = (targetScreenX - mousePos.X) * factor
-    local deltaY = (targetScreenY - mousePos.Y) * factor
-    
-    -- Round to integers (required for Xeno and some other executors)
-    deltaX = math.floor(deltaX + 0.5)
-    deltaY = math.floor(deltaY + 0.5)
-    
-    -- Skip tiny movements (locked on target)
-    if math.abs(deltaX) < 1 and math.abs(deltaY) < 1 then
-        debugLog("Already on target")
-        return true
-    end
-    
-    debugLog("Delta: X=", deltaX, "Y=", deltaY, "Factor=", factor)
-    
-    -- Try mousemoverel (most common executor function)
-    if mousemoverel then
-        local success = pcall(function()
-            mousemoverel(deltaX, deltaY)
-        end)
-        if success then 
-            debugLog("mousemoverel succeeded")
-            return true 
-        end
-    end
-    
-    -- Try Input.MouseMove (Xeno)
-    if Input and Input.MouseMove then
-        local success = pcall(function()
-            Input.MouseMove(deltaX, deltaY)
-        end)
-        if success then 
-            debugLog("Input.MouseMove succeeded")
-            return true 
-        end
-    end
-    
-    -- Try mouse_move
-    if mouse_move then
-        local success = pcall(function()
-            mouse_move(deltaX, deltaY)
-        end)
-        if success then 
-            debugLog("mouse_move succeeded")
-            return true 
-        end
-    end
-    
-    debugLog("No mouse movement function available")
-    return false
 end
 
 -- Aimbot loop (Smooth)
 local function aimbotLoop()
-    if not aimbotEnabled then 
-        return 
-    end
-    
-    -- If hold-to-aim is enabled, only aim when holding RMB
-    if aimHoldEnabled and not aimHoldActive then
-        currentTarget = nil
-        return
-    end
+    if not aimbotEnabled then return end
+    if aimHoldEnabled and not aimHoldActive then return end
 
-    local Camera = getCamera()
-    if not Camera then 
-        debugLog("Camera not found")
-        return 
-    end
-    
     local target = getClosestPlayer()
 
     if target and target.Character then
         local part = getTargetPart(target.Character)
 
         if part then
-            debugLog("Target:", target.Name, "Part:", part.Name)
+            -- Get predicted position
+            local targetPos = predictionEnabled and getPredictedPosition(part) or part.Position
             
-            -- Apply Prediction
-            local targetPos = part.Position + (part.Velocity * predictionStrength)
+            -- Apply aim offset
+            targetPos = targetPos + Vector3.new(aimOffsetX, aimOffsetY, aimOffsetZ)
             
-            -- Check angle to target
+            -- Kamerayı hedefin kafasına yönlendir
             local toTarget = (targetPos - Camera.CFrame.Position).Unit
             local angle = math.deg(math.acos(math.clamp(Camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
-            
-            debugLog("Angle:", math.floor(angle), "MaxAngle:", maxAngleDeg)
-            
-            if angle > maxAngleDeg then 
-                debugLog("Angle exceeds max, skipping")
-                currentTarget = nil
-                return 
-            end
-            
-            -- Calculate smoothing factor
+            if angle > maxAngleDeg then return end
+            local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
             local factor = aimbotSmoothing
             if dynamicSmoothingEnabled and maxAngleDeg > 0 then
                 local ratio = math.clamp(angle / maxAngleDeg, 0.2, 1)
-                factor = math.clamp(factor * ratio, 0.01, 1)
-                debugLog("Dynamic smoothing factor:", factor)
+                factor = math.clamp(aimbotSmoothing * ratio, 0.01, 1)
             end
-            
-            -- Get target screen position
-            local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
-            
-            if onScreen then
-                -- Try to move cursor to target (works if executor supports it)
-                local cursorMoved = moveCursorToTarget(Vector2.new(screenPos.X, screenPos.Y), factor)
-                
-                -- If cursor move failed, use camera-based aiming as fallback
-                if not cursorMoved then
-                    debugLog("Using camera-based aiming fallback")
-                    local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
-                    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, factor)
-                end
-            else
-                debugLog("Target not on screen")
-            end
-            
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, factor)
             currentTarget = target
-        else
-            debugLog("No valid target part")
-            currentTarget = nil
+            
+            -- Trigger bot logic
+            if triggerBotEnabled and tick() - lastTriggerTime > triggerBotDelay then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
+                if onScreen then
+                    local mousePos = UserInputService:GetMouseLocation()
+                    local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if distToCenter < 5 then -- Within 5 pixels of crosshair
+                        mouse1click()
+                        lastTriggerTime = tick()
+                    end
+                end
+            end
         end
     else
         currentTarget = nil
@@ -298,26 +219,22 @@ function module.init()
     print("[Aimbot] Module initialized")
     if not inputBeganConn then
         inputBeganConn = UserInputService.InputBegan:Connect(function(input, gpe)
-            task.spawn(function()
-                if gpe then return end
-                if input.UserInputType == Enum.UserInputType.MouseButton2 then
-                    aimHoldActive = true
-                elseif input.KeyCode == toggleKeyCode then
-                    if toggleKeyEnabled then
-                        module.toggleAimbot(not aimbotEnabled)
-                    end
+            if gpe then return end
+            if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                aimHoldActive = true
+            elseif input.KeyCode == toggleKeyCode then
+                if toggleKeyEnabled then
+                    module.toggleAimbot(not aimbotEnabled)
                 end
-            end)
+            end
         end)
     end
     if not inputEndedConn then
         inputEndedConn = UserInputService.InputEnded:Connect(function(input, gpe)
-            task.spawn(function()
-                if gpe then return end
-                if input.UserInputType == Enum.UserInputType.MouseButton2 then
-                    aimHoldActive = false
-                end
-            end)
+            if gpe then return end
+            if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                aimHoldActive = false
+            end
         end)
     end
 end
@@ -339,28 +256,18 @@ function module.toggleAimbot(state)
             aimbotConnection:Disconnect()
             aimbotConnection = nil
         end
-        -- Clear current target so FOV circle color resets
-        currentTarget = nil
     end
 end
 
 function module.setFOV(value)
     aimbotFOV = math.max(1, tonumber(value) or aimbotFOV)
-    print("[Aimbot] FOV set to:", aimbotFOV)
-    -- Update FOV circle size immediately if visible
-    if fovFrame and fovCircleEnabled then
-        fovFrame.Size = UDim2.fromOffset(aimbotFOV * 2, aimbotFOV * 2)
-    end
+    print("[Aimbot] FOV set to:", value)
 end
 
 function module.setSmoothing(value)
-    local v = tonumber(value) or 5
-    -- Map 1-10 to 0.1 - 1.0
-    -- 1 -> 0.1 (Very smooth/slow)
-    -- 5 -> 0.5 (Medium)
-    -- 10 -> 1.0 (Instant lock)
-    aimbotSmoothing = math.clamp(v * 0.1, 0.1, 1)
-    print("[Aimbot] Smoothing set to:", value, "(Internal:", aimbotSmoothing, ")")
+    local v = tonumber(value) or 1
+    aimbotSmoothing = math.clamp(v / 10, 0.05, 1)
+    print("[Aimbot] Smoothing set to:", value)
 end
 
 function module.toggleTeamCheck(state)
@@ -411,60 +318,39 @@ function module.setMaxAngle(deg)
     print("[Aimbot] MaxAngle:", maxAngleDeg)
 end
 
-function module.setPrediction(value)
-    local v = tonumber(value) or 0.135
-    predictionStrength = math.clamp(v, 0, 0.5)
-    print("[Aimbot] Prediction:", predictionStrength)
-end
-
 local function ensureFOVGui()
     if fovGui and fovFrame then return true end
     local pg = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui")
     if not pg then return false end
-    
-    -- Cleanup existing GUI
-    local oldGui = pg:FindFirstChild("AqwozHubFOV")
-    if oldGui then
-        oldGui:Destroy()
-    end
-
     fovGui = Instance.new("ScreenGui")
     fovGui.Name = "AqwozHubFOV"
     fovGui.IgnoreGuiInset = true
     fovGui.ResetOnSpawn = false
-    fovGui.DisplayOrder = 998 -- Just below Silent Aim FOV
     fovGui.Parent = pg
-    
     fovFrame = Instance.new("Frame")
     fovFrame.Name = "FOVCircle"
     fovFrame.BackgroundTransparency = 1
-    fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
     fovFrame.Position = UDim2.fromOffset(0, 0)
     fovFrame.Size = UDim2.fromOffset(aimbotFOV * 2, aimbotFOV * 2)
     fovFrame.ZIndex = 100
     fovFrame.Parent = fovGui
-    
     fovStroke = Instance.new("UIStroke")
     fovStroke.Thickness = 2
     fovStroke.Transparency = 0.3
     fovStroke.Color = fovDefaultColor
     fovStroke.Parent = fovFrame
-    
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(1, 0)
     corner.Parent = fovFrame
-    
     pointerFrame = Instance.new("Frame")
     pointerFrame.Name = "PointerDot"
     pointerFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     pointerFrame.BackgroundTransparency = 0
-    pointerFrame.AnchorPoint = Vector2.new(0.5, 0.5)
     pointerFrame.Size = UDim2.fromOffset(6, 6)
     pointerFrame.Position = UDim2.fromOffset(0, 0)
     pointerFrame.ZIndex = 101
     pointerFrame.Visible = false
     pointerFrame.Parent = fovGui
-    
     local pcorner = Instance.new("UICorner")
     pcorner.CornerRadius = UDim.new(1, 0)
     pcorner.Parent = pointerFrame
@@ -474,20 +360,9 @@ end
 local function updateFOVCircle()
     if not fovCircleEnabled then return end
     if not fovGui or not fovFrame then return end
-    
-    local Camera = getCamera()
-    if not Camera then return end
-    
-    local viewport = Camera.ViewportSize
-    local guiInset = GuiService:GetGuiInset()
-    
-    -- Center of viewport + GuiInset = Center of Screen (Crosshair)
-    -- Correct formula: (ViewportSize + GuiInset) / 2
-    local center = Vector2.new((viewport.X + guiInset.X) / 2, (viewport.Y + guiInset.Y) / 2)
-    
+    local mouse = UserInputService:GetMouseLocation()
     fovFrame.Size = UDim2.fromOffset(aimbotFOV * 2, aimbotFOV * 2)
-    fovFrame.Position = UDim2.fromOffset(center.X, center.Y)
-    
+    fovFrame.Position = UDim2.fromOffset(mouse.X - aimbotFOV, mouse.Y - aimbotFOV)
     if fovStroke then
         if currentTarget then
             fovStroke.Color = fovLockedColor
@@ -500,14 +375,8 @@ end
 local function updatePointerDot()
     if not pointerLockEnabled then return end
     if not pointerFrame or not fovGui then return end
-    local Camera = getCamera()
-    if not Camera then return end
-    
-    local guiInset = GuiService:GetGuiInset()
     local pos
-
-    -- If aimbot is enabled and we have a target, show pointer on target
-    if aimbotEnabled and currentTarget and currentTarget.Character then
+    if currentTarget and currentTarget.Character then
         local part = getTargetPart(currentTarget.Character)
         if part then
             local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
@@ -516,14 +385,11 @@ local function updatePointerDot()
             end
         end
     end
-    
-    -- Fallback to screen center if no target
     if not pos then
-        local viewport = Camera.ViewportSize
-        pos = Vector2.new(viewport.X / 2, viewport.Y / 2 + guiInset.Y)
+        local mouse = UserInputService:GetMouseLocation()
+        pos = Vector2.new(mouse.X, mouse.Y)
     end
-    
-    pointerFrame.Position = UDim2.fromOffset(pos.X, pos.Y)
+    pointerFrame.Position = UDim2.fromOffset(pos.X - 3, pos.Y - 3)
 end
 
 function module.toggleFOVCircle(state)
@@ -583,24 +449,72 @@ function module.toggleDynamicSmoothing(state)
     print("[Aimbot] DynamicSmoothing:", dynamicSmoothingEnabled)
 end
 
-function module.toggleDebugMode(state)
-    debugMode = state and true or false
-    print("[Aimbot] DebugMode:", debugMode)
-    if debugMode then
-        debugLog("Debug logs enabled")
+function module.togglePrediction(state)
+    predictionEnabled = state and true or false
+    print("[Aimbot] Prediction:", predictionEnabled)
+end
+
+function module.setPredictionMultiplier(value)
+    local v = tonumber(value) or 1.0
+    predictionMultiplier = math.clamp(v, 0.1, 5.0)
+    print("[Aimbot] PredictionMultiplier:", predictionMultiplier)
+end
+
+function module.toggleStickyTarget(state)
+    stickyTargetEnabled = state and true or false
+    if not state then
+        currentTarget = nil
+    end
+    print("[Aimbot] StickyTarget:", stickyTargetEnabled)
+end
+
+function module.toggleTriggerBot(state)
+    triggerBotEnabled = state and true or false
+    print("[Aimbot] TriggerBot:", triggerBotEnabled)
+end
+
+function module.setTriggerDelay(value)
+    local v = tonumber(value) or 0.1
+    triggerBotDelay = math.clamp(v, 0, 1)
+    print("[Aimbot] TriggerDelay:", triggerBotDelay)
+end
+
+function module.setAimOffset(x, y, z)
+    aimOffsetX = tonumber(x) or 0
+    aimOffsetY = tonumber(y) or 0
+    aimOffsetZ = tonumber(z) or 0
+    print("[Aimbot] AimOffset:", aimOffsetX, aimOffsetY, aimOffsetZ)
+end
+
+function module.setTargetPriority(priority)
+    local allowed = {
+        closest = true,
+        lowest_health = true,
+        highest_threat = true
+    }
+    if type(priority) == "string" and allowed[priority] then
+        targetPriority = priority
+    end
+    print("[Aimbot] TargetPriority:", targetPriority)
+end
+
+function module.addToIgnoreList(userId)
+    if type(userId) == "number" then
+        ignoreList[userId] = true
+        print("[Aimbot] Added to ignore list:", userId)
     end
 end
 
-function module.getStats()
-    return {
-        enabled = aimbotEnabled,
-        currentTarget = currentTarget and currentTarget.Name or "None",
-        fov = aimbotFOV,
-        smoothing = aimbotSmoothing,
-        prediction = predictionStrength,
-        targetPart = targetPartName,
-        holdActive = aimHoldActive
-    }
+function module.removeFromIgnoreList(userId)
+    if type(userId) == "number" then
+        ignoreList[userId] = nil
+        print("[Aimbot] Removed from ignore list:", userId)
+    end
+end
+
+function module.clearIgnoreList()
+    ignoreList = {}
+    print("[Aimbot] Ignore list cleared")
 end
 
 function module.destroy()
@@ -630,10 +544,8 @@ function module.destroy()
         fovGui:Destroy()
         fovGui = nil
         fovFrame = nil
-        fovStroke = nil
         pointerFrame = nil
     end
-    print("[Aimbot] Module destroyed")
 end
 
 return module
