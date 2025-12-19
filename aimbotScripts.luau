@@ -281,6 +281,10 @@ function module.toggleAimbot(state)
     print("[Aimbot] Toggled:", state)
 
     if state then
+        if not mousemoverel then
+            warn("[Aimbot] WARNING: mousemoverel function missing. Aimbot will NOT lock cursor.")
+            warn("[Aimbot] Your executor may not support cursor manipulation.")
+        end
         -- Aimbot açık
         if aimbotConnection then
             aimbotConnection:Disconnect()
@@ -363,13 +367,14 @@ local function ensureFOVGui()
     fovGui.Name = "AqwozHubFOV"
     fovGui.IgnoreGuiInset = true
     fovGui.ResetOnSpawn = false
+    fovGui.DisplayOrder = 10000 -- Ensure on top
     fovGui.Parent = pg
     fovFrame = Instance.new("Frame")
     fovFrame.Name = "FOVCircle"
     fovFrame.BackgroundTransparency = 1
     fovFrame.Position = UDim2.fromOffset(0, 0)
     fovFrame.Size = UDim2.fromOffset(aimbotFOV * 2, aimbotFOV * 2)
-    fovFrame.ZIndex = 100
+    fovFrame.ZIndex = 10000
     fovFrame.Parent = fovGui
     fovStroke = Instance.new("UIStroke")
     fovStroke.Thickness = 2
