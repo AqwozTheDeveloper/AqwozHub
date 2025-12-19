@@ -146,15 +146,14 @@ local function getClosestPlayer()
                     if onScreen and isVisible(player.Character, part) then
                         local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
                         if aimbotMaxDistance and aimbotMaxDistance > 0 then
-        if aimbotMaxDistance and aimbotMaxDistance > 0 then
-            local Camera = getCamera()
-            if Camera then
-                local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
-                if worldDist > aimbotMaxDistance then return false end
-            end
-        end
-        return true
-    end
+                            local Camera = getCamera()
+                            if Camera then
+                                local worldDist = (part.Position - Camera.CFrame.Position).Magnitude
+                                if worldDist > aimbotMaxDistance then
+                                    distance = math.huge
+                                end
+                            end
+                        end
                         if distance < shortestDistance then
                             table.insert(candidates, {player = player, distance = distance, health = getPlayerHealth(player)})
                             closestPlayer = player
