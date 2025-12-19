@@ -276,13 +276,14 @@ local function ensureFOVGui()
     fovGui.Name = "SilentAimFOV"
     fovGui.IgnoreGuiInset = true
     fovGui.ResetOnSpawn = false
+    fovGui.DisplayOrder = 10000 -- Ensure on top
     fovGui.Parent = pg
     fovFrame = Instance.new("Frame")
     fovFrame.Name = "FOVCircle"
     fovFrame.BackgroundTransparency = 1
     fovFrame.Position = UDim2.fromOffset(0, 0)
     fovFrame.Size = UDim2.fromOffset(silentAimFOV * 2, silentAimFOV * 2)
-    fovFrame.ZIndex = 100
+    fovFrame.ZIndex = 10000
     fovFrame.Parent = fovGui
     fovStroke = Instance.new("UIStroke")
     fovStroke.Thickness = 2
