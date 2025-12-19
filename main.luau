@@ -1,5 +1,8 @@
 -- main.luau - Aqwoz Hub (Rayfield Edition)
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+print("------------------------------------------------")
+print("[AqwozHub] STARTING VERSION 1.1.0 - FIXES LIVE")
+print("------------------------------------------------")
 
 -- Module Loader
 local function loadModule(path, url)
