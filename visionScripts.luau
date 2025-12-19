@@ -362,36 +362,52 @@ end
 function module.toggleDistance(state)
     showDistance = state and true or false
     print("[Vision] Distance display:", showDistance)
+    -- Refresh ESP if enabled
     if espEnabled then
-        module.toggleESP(false)
-        module.toggleESP(true)
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= Players.LocalPlayer and plr.Character then
+                createESP(plr.Character)
+            end
+        end
     end
 end
 
 function module.toggleHealth(state)
     showHealth = state and true or false
     print("[Vision] Health display:", showHealth)
+    -- Refresh ESP if enabled
     if espEnabled then
-        module.toggleESP(false)
-        module.toggleESP(true)
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= Players.LocalPlayer and plr.Character then
+                createESP(plr.Character)
+            end
+        end
     end
 end
 
 function module.toggleTracers(state)
     showTracers = state and true or false
     print("[Vision] Tracers:", showTracers)
+    -- Refresh ESP if enabled
     if espEnabled then
-        module.toggleESP(false)
-        module.toggleESP(true)
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= Players.LocalPlayer and plr.Character then
+                createESP(plr.Character)
+            end
+        end
     end
 end
 
 function module.toggleNames(state)
     showNames = state and true or false
     print("[Vision] Name tags:", showNames)
+    -- Refresh ESP if enabled
     if espEnabled then
-        module.toggleESP(false)
-        module.toggleESP(true)
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= Players.LocalPlayer and plr.Character then
+                createESP(plr.Character)
+            end
+        end
     end
 end
 

@@ -34,6 +34,7 @@ local function loadModule(path, url)
             init = function() end,
             toggleESP = function() end,
             toggleAimbot = function() end,
+            toggleSilentAim = function() end,
             setFOV = function() end,
             setSmoothing = function() end,
             toggleTeamCheck = function() end,
@@ -46,7 +47,11 @@ local function loadModule(path, url)
             setMaxAngle = function() end,
             setMaxDistance = function() end,
             toggleDynamicSmoothing = function() end,
-            togglePointerLock = function() end
+            togglePointerLock = function() end,
+            toggleDistance = function() end,
+            toggleHealth = function() end,
+            toggleTracers = function() end,
+            toggleNames = function() end
         }
     end
 end
@@ -58,6 +63,10 @@ visionScripts.init()
 -- Aimbot module
 local aimbotScripts = loadModule("aimbotScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHubLegacy/refs/heads/main/AqwozHub-main/aimbotScripts.luau")
 aimbotScripts.init()
+
+-- Silent Aim module
+local silentAimScripts = loadModule("silentAimScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHubLegacy/refs/heads/main/AqwozHub-main/silentAimScripts.luau")
+silentAimScripts.init()
 
 -- Window
 local Window = Rayfield:CreateWindow({
@@ -310,6 +319,69 @@ CombatTab:CreateDropdown({
    Flag = "TargetPriority",
    Callback = function(Value)
         aimbotScripts.setTargetPriority(Value)
+   end,
+})
+
+CombatTab:CreateSection("Silent Aim")
+
+CombatTab:CreateToggle({
+   Name = "Enable Silent Aim",
+   CurrentValue = false,
+   Flag = "SilentAimToggle",
+   Callback = function(Value)
+        silentAimScripts.toggleSilentAim(Value)
+   end,
+})
+
+CombatTab:CreateSlider({
+   Name = "Silent Aim FOV",
+   Range = {10, 500},
+   Increment = 10,
+   Suffix = "px",
+   CurrentValue = 200,
+   Flag = "SilentAimFOV",
+   Callback = function(Value)
+        silentAimScripts.setFOV(Value)
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Silent Aim Team Check",
+   CurrentValue = false,
+   Flag = "SilentAimTeamCheck",
+   Callback = function(Value)
+        silentAimScripts.toggleTeamCheck(Value)
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Silent Aim Wall Check",
+   CurrentValue = false,
+   Flag = "SilentAimWallCheck",
+   Callback = function(Value)
+        silentAimScripts.toggleWallCheck(Value)
+   end,
+})
+
+CombatTab:CreateDropdown({
+   Name = "Silent Aim Target Part",
+   Options = {"Head", "UpperTorso", "Torso", "HumanoidRootPart"},
+   CurrentOption = "Head",
+   Flag = "SilentAimTargetPart",
+   Callback = function(Value)
+        silentAimScripts.setTargetPart(Value)
+   end,
+})
+
+CombatTab:CreateSlider({
+   Name = "Silent Aim Max Distance",
+   Range = {0, 1000},
+   Increment = 50,
+   Suffix = " studs",
+   CurrentValue = 0,
+   Flag = "SilentAimMaxDistance",
+   Callback = function(Value)
+        silentAimScripts.setMaxDistance(Value)
    end,
 })
 
