@@ -402,6 +402,27 @@ CombatTab:CreateSlider({
 })
 
 CombatTab:CreateToggle({
+   Name = "Silent Aim Prediction",
+   CurrentValue = false,
+   Flag = "SilentAimPrediction",
+   Callback = function(Value)
+        silentAimScripts.togglePrediction(Value)
+   end,
+})
+
+CombatTab:CreateSlider({
+   Name = "Silent Aim Prediction Strength",
+   Range = {0.1, 5},
+   Increment = 0.1,
+   Suffix = "x",
+   CurrentValue = 1.0,
+   Flag = "SilentAimPredictionMult",
+   Callback = function(Value)
+        silentAimScripts.setPredictionMultiplier(Value)
+   end,
+})
+
+CombatTab:CreateToggle({
    Name = "Silent Aim Team Check",
    CurrentValue = false,
    Flag = "SilentAimTeamCheck",
