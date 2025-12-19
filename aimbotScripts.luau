@@ -197,9 +197,9 @@ local function aimbotLoop()
             Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, factor)
             currentTarget = target
             
-            -- Move cursor to target position
+            -- Move cursor to target position (executor-specific)
             local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
-            if onScreen then
+            if onScreen and mousemoverel then
                 local mousePos = UserInputService:GetMouseLocation()
                 local deltaX = screenPos.X - mousePos.X
                 local deltaY = screenPos.Y - mousePos.Y
@@ -209,8 +209,8 @@ local function aimbotLoop()
                 mousemoverel(deltaX * cursorFactor, deltaY * cursorFactor)
             end
             
-            -- Trigger bot logic
-            if triggerBotEnabled and tick() - lastTriggerTime > triggerBotDelay then
+            -- Trigger bot logic (executor-specific)
+            if triggerBotEnabled and mouse1click and tick() - lastTriggerTime > triggerBotDelay then
                 local screenPos2, onScreen2 = Camera:WorldToViewportPoint(targetPos)
                 if onScreen2 then
                     local mousePos2 = UserInputService:GetMouseLocation()

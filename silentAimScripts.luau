@@ -97,13 +97,20 @@ end
 function module.init()
     print("[SilentAim] Module initialized")
     
+    -- Check if required metatable functions exist
+    if not getrawmetatable or not getnamecallmethod or not setreadonly then
+        warn("[SilentAim] Critical: Executor does not support required metatable functions")
+        warn("[SilentAim] Silent aim will NOT work on this executor")
+        return
+    end
+    
     -- Hook into namecall for silent aim
-    mt.__namecall = newcclosure(function(...)
+    local hookFunction = function(...)
         local args = {...}
         local self = args[1]
         local method = getnamecallmethod()
         
-        if silentAimEnabled and method == "FireServer" or method == "InvokeServer" then
+        if silentAimEnabled and (method == "FireServer" or method == "InvokeServer") then
             -- Find target
             local target = getClosestPlayerToMouse()
             if target and target.Character then
@@ -122,12 +129,22 @@ function module.init()
                     end
                 end
             end
+            return namecall(unpack(args))
         end
         
         return namecall(...)
-    end)
+    end
+    
+    -- Use newcclosure if available, otherwise use regular function
+    if newcclosure then
+        mt.__namecall = newcclosure(hookFunction)
+    else
+        warn("[SilentAim] Warning: newcclosure not available, detection risk higher")
+        mt.__namecall = hookFunction
+    end
     
     setreadonly(mt, true)
+    print("[SilentAim] Namecall hook installed successfully")
 end
 
 function module.toggleSilentAim(state)

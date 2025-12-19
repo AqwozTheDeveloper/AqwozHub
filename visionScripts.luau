@@ -22,7 +22,7 @@ print("[Vision] Module loaded")
 
 -- ESP oluşturma fonksiyonu
 local function createESP(character)
-    print("[Vision] Creating ESP for:", character.Parent.Name)
+    print("[Vision] Creating ESP for:", character.Name)
 
     local hrp = character:FindFirstChild("HumanoidRootPart")
     if not hrp then
@@ -35,10 +35,11 @@ local function createESP(character)
         return
     end
 
-    -- Eski ESP'leri temizle
     if espFolder then
         for _, child in pairs(espFolder:GetChildren()) do
-            if child.Name:find(character.Parent.Name) then
+            -- Strict check: Name must strictly start with "PlayerName_"
+            local prefix = character.Name .. "_"
+            if child.Name:sub(1, #prefix) == prefix then
                 child:Destroy()
             end
         end
@@ -51,7 +52,7 @@ local function createESP(character)
 
     -- BoxHandleAdornment
     local box = Instance.new("BoxHandleAdornment")
-    box.Name = character.Parent.Name .. "_Box"
+    box.Name = character.Name .. "_Box"
     box.Size = Vector3.new(4, 6, 4)
     box.Color3 = espColor
     box.Transparency = 0.5
@@ -61,7 +62,7 @@ local function createESP(character)
     box.Visible = true
     box.Parent = espFolder
 
-    print("[Vision] Box created for:", character.Parent.Name)
+    print("[Vision] Box created for:", character.Name)
 
     -- Highlight ekle
     local highlight = Instance.new("Highlight")
@@ -73,12 +74,12 @@ local function createESP(character)
     highlight.OutlineTransparency = 0
     highlight.Parent = character
 
-    print("[Vision] Highlight created for:", character.Parent.Name)
+    print("[Vision] Highlight created for:", character.Name)
     
     -- Distance Text
     if showDistance then
         local billboardGui = Instance.new("BillboardGui")
-        billboardGui.Name = character.Parent.Name .. "_Distance"
+        billboardGui.Name = character.Name .. "_Distance"
         billboardGui.Adornee = hrp
         billboardGui.Size = UDim2.new(0, 100, 0, 50)
         billboardGui.StudsOffset = Vector3.new(0, 3, 0)
@@ -101,7 +102,7 @@ local function createESP(character)
         local humanoid = character:FindFirstChild("Humanoid")
         if humanoid then
             local healthGui = Instance.new("BillboardGui")
-            healthGui.Name = character.Parent.Name .. "_Health"
+            healthGui.Name = character.Name .. "_Health"
             healthGui.Adornee = hrp
             healthGui.Size = UDim2.new(0, 100, 0, 10)
             healthGui.StudsOffset = Vector3.new(0, 4, 0)
@@ -126,7 +127,7 @@ local function createESP(character)
     -- Name Tag
     if showNames then
         local nameGui = Instance.new("BillboardGui")
-        nameGui.Name = character.Parent.Name .. "_Name"
+        nameGui.Name = character.Name .. "_Name"
         nameGui.Adornee = hrp
         nameGui.Size = UDim2.new(0, 200, 0, 50)
         nameGui.StudsOffset = Vector3.new(0, 2, 0)
@@ -140,21 +141,15 @@ local function createESP(character)
         nameLabel.TextStrokeTransparency = 0.5
         nameLabel.Font = Enum.Font.GothamBold
         nameLabel.TextSize = 16
-        nameLabel.Text = character.Parent.Name
+        nameLabel.Text = character.Name
         nameLabel.Parent = nameGui
     end
     
-    -- Tracer Line
-    if showTracers then
-        local line = Instance.new("Line")
-        line.Name = character.Parent.Name .. "_Tracer"
-        line.Thickness = 2
-        line.Color = espColor
-        line.Transparency = 0.5
-        line.ZIndex = 5
-        line.Visible = false
-        line.Parent = espFolder
-    end
+    -- Tracer Line (requires Drawing API - executor specific)
+    -- TODO: Implement with Drawing library
+    -- if showTracers then
+    --     Note: Instance.new("Line") is not valid, need Drawing.new("Line")
+    -- end
 end
 
 -- Oyuncu için ESP setup
@@ -186,6 +181,12 @@ end
 -- MODULE API
 function module.init()
     print("[Vision] Initializing module...")
+
+    -- Clean up existing folder if script is re-executed
+    local existingFolder = workspace:FindFirstChild("VisionESP")
+    if existingFolder then
+        existingFolder:Destroy()
+    end
 
     espFolder = Instance.new("Folder")
     espFolder.Name = "VisionESP"
@@ -248,28 +249,11 @@ function module.init()
                         end
                     end
                     
-                    -- Update tracers
-                    if showTracers then
-                        local tracer = espFolder:FindFirstChild(plr.Name .. "_Tracer")
-                        if tracer and tracer:IsA("Line") then
-                            local screenPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-                            if onScreen and distance <= maxDistance then
-                                local startPos
-                                if tracerOrigin == "Bottom" then
-                                    startPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                                elseif tracerOrigin == "Center" then
-                                    startPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                                else
-                                    startPos = game:GetService("UserInputService"):GetMouseLocation()
-                                end
-                                tracer.From = startPos
-                                tracer.To = Vector2.new(screenPos.X, screenPos.Y)
-                                tracer.Visible = true
-                            else
-                                tracer.Visible = false
-                            end
-                        end
-                    end
+                    -- Update tracers (disabled - requires Drawing API)
+                    -- TODO: Implement tracer update with Drawing library
+                    -- if showTracers then
+                    --     Update tracer positions here
+                    -- end
                 end
             end
         end

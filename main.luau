@@ -72,17 +72,57 @@ local function loadModule(path, url)
     end
 end
 
+-- Global Cleanup (Prevent multiple instances)
+if getgenv().AqwozHubLoaded then
+    print("[AqwozHub] Cleaning up previous instance...")
+    if getgenv().AqwozHubLoaded.aimbot then
+        pcall(function() getgenv().AqwozHubLoaded.aimbot.destroy() end)
+    end
+    if getgenv().AqwozHubLoaded.silentAim then
+        pcall(function() getgenv().AqwozHubLoaded.silentAim.destroy() end)
+    end
+    if getgenv().AqwozHubLoaded.vision then
+        pcall(function() getgenv().AqwozHubLoaded.vision.destroy() end)
+    end
+    -- Window cleanup usually handled by Rayfield's own check, but we track modules
+end
+
+getgenv().AqwozHubLoaded = {
+    aimbot = nil,
+    silentAim = nil,
+    vision = nil
+}
+
 -- Vision module
 local visionScripts = loadModule("visionScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/master/visionScripts.luau")
-visionScripts.init()
+local success, err = pcall(function()
+    visionScripts.init()
+    getgenv().AqwozHubLoaded.vision = visionScripts
+end)
+if not success then
+    warn("[AqwozHub] Vision module init failed:", err)
+end
 
 -- Aimbot module
 local aimbotScripts = loadModule("aimbotScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/master/aimbotScripts.luau")
-aimbotScripts.init()
+success, err = pcall(function()
+    aimbotScripts.init()
+    getgenv().AqwozHubLoaded.aimbot = aimbotScripts
+end)
+if not success then
+    warn("[AqwozHub] Aimbot module init failed:", err)
+end
 
 -- Silent Aim module
 local silentAimScripts = loadModule("silentAimScripts.luau", "https://raw.githubusercontent.com/AqwozTheDeveloper/AqwozHub/refs/heads/master/silentAimScripts.luau")
-silentAimScripts.init()
+success, err = pcall(function()
+    silentAimScripts.init()
+    getgenv().AqwozHubLoaded.silentAim = silentAimScripts
+end)
+if not success then
+    warn("[AqwozHub] Silent Aim module init failed:", err)
+end
+
 
 -- Window
 local Window = Rayfield:CreateWindow({
